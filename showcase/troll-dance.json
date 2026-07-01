@@ -1,0 +1,136 @@
+{
+  "title": "The Troll's Dance",
+  "logline": "A grumpy troll who secretly wants to dance attracts a young girl to save his soul, and together they find a way to let him live his true, doomed life.",
+  "shots": [
+    {
+      "narration": "A grumpy troll sits on a hill, swatting flies and muttering to himself.",
+      "cast": [
+        "troll",
+        "mountain"
+      ],
+      "action": "rise",
+      "setting": "earth",
+      "camera": "static",
+      "dialogue": "",
+      "mood": []
+    },
+    {
+      "narration": "The troll's only friend is a small, green lizard who asks if he can dance with him.",
+      "cast": [
+        "troll",
+        "frog"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "The troll hisses and tells the lizard to get lost.",
+      "cast": [
+        "troll",
+        "frog"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "The lizard's eyes flash with anger, but he smiles briefly before hopping gracefully away.",
+      "cast": [
+        "tree",
+        "frog"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "Days pass and the troll's rage fades, but he can't shake the feeling that something is missing.",
+      "cast": [
+        "troll"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "A young girl arrives on the hill, searching for a way to save her soul.",
+      "cast": [
+        "troll",
+        "girl",
+        "child",
+        "mountain"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "The girl's eyes light up at the lizard and she asks if he knows the troll.",
+      "cast": [
+        "girl",
+        "child",
+        "troll",
+        "frog"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "The lizard nods, and the girl's eyes go wide, as the troll hisses and threatens.",
+      "cast": [
+        "troll",
+        "girl",
+        "child",
+        "frog"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [
+        "angry"
+      ],
+      "dialogue": ""
+    },
+    {
+      "narration": "The girl stands her ground, and the troll snarls, but the lizard whispers in his ear.",
+      "cast": [
+        "troll",
+        "girl",
+        "child",
+        "frog"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "The troll hesitates, and the girl leans in, her eyes pleading.",
+      "cast": [
+        "troll",
+        "girl",
+        "child"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    }
+  ]
+}

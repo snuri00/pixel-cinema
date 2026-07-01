@@ -1,0 +1,400 @@
+# LLM Cinema ASCII sprite library (data, not code — backslashes are literal here).
+# Format:  @label  on its own line, then the art lines, until the next @label.
+# House style: <= 7 rows, <= 14 cols, pure ASCII, front-facing, sits on a ground line.
+# ascii_sprites.py loads these and merges them in; ascii_data.py teaches them to the LLM.
+
+# ── animals ───────────────────────────────────────────────────────────────────
+@lion
+ ,~~~,
+( o o )
+( =w= )
+ \___/
+ ^   ^
+
+@tiger
+ (\_/)
+(=o.o=)
+ )===(
+ /   \
+
+@bear
+ (o o)
+(  ^  )
+(_____)
+ / | \
+
+@panda
+ q   p
+(o_o)
+( -v- )
+ -- --
+
+@wolf
+ /\_/\
+( o.o )
+ )   (
+ ^^ ^^
+
+@fox
+ /\_/\
+(>'.'<)
+ (   )
+ ^^ ^^
+
+@deer
+ \\Y//
+( o o )
+/|   |\
+ ~ ~ ~
+
+@horse
+ /^^^\
+( o o )
+/|   |\
+ ~ ~ ~
+
+@cow
+ ^__^
+(o  o)
+( ww )
+/ || \
+
+@pig
+ ,---,
+( o o)
+( -o-)
+ ^   ^
+
+@sheep
+ _____
+(     )
+( o o )
+ ^^^^^
+
+@goat
+ \   /
+( o o )
+ ( m )
+ ^   ^
+
+@elephant
+  _____
+ ( o o )
+ ( |  )_
+ (__|___)
+
+@monkey
+ (o.o)
+ ( @ )
+ /| |\
+ _/ \_
+
+@frog
+ @   @
+( o o )
+ ( - )
+ ~   ~
+
+@turtle
+  .--.
+ (o..o)
+( {##} )
+ ^^  ^^
+
+@snake
+ _____
+( o o )>
+ \\\\\\
+  ~~~
+
+@snail
+   __
+  (  )__
+ (o o   )
+ (______)
+
+@bee
+  _ _
+ (o o)
+ \=x=/
+  \_/
+
+@butterfly
+\  o  /
+ \(o)/
+ /(o)\
+/  o  \
+
+@ladybug
+ .---.
+( . . )
+( o o )
+ ^^ ^^
+
+@spider
+ ,---,
+/(o o)\
+\\\|///
+ / | \
+
+@crab
+(\/) (\/)
+  (o.o)
+ /\   /\
+
+@octopus
+ (****)
+ ( o o )
+  )({{
+ //||\\
+
+@dolphin
+   __
+  (o \__
+ /      \
+ \__/\__/
+
+@whale
+  .---.
+ (     )>
+ ( o   )
+  `~~~`
+
+@shark
+   __
+  / o>
+<|    \
+  \____/
+
+@penguin
+  .--.
+ ( oo )
+ ( || )
+  ^  ^
+
+@duck
+  __
+ <o )
+ ( =/
+ ~~~~~
+
+@chicken
+  ,
+ <o)
+ ( (
+ / \
+
+@parrot
+  (o<
+ <|  \
+  ||
+  ^^
+
+@swan
+  _
+ ( >
+( __)
+~~~~~~
+
+@hedgehog
+ ///\\\
+(  o.o )
+ \____/
+ ^    ^
+
+@bat
+ /\   /\
+( o   o )
+ \ vvv /
+  ^   ^
+
+# ── characters ────────────────────────────────────────────────────────────────
+@pirate
+  _+_
+ (o_O)
+ /| |\
+ _/ \_
+
+@ninja
+  ___
+ (---)
+  )|(
+ _/ \_
+
+@witch
+   /\
+  /__\
+ (o..o)
+ /|##|\
+
+@fairy
+  \o/
+ \(o)/
+  / \
+  ^^^
+
+@angel
+  .o.
+  \o/
+   |
+  / \
+
+@skeleton
+ (x x)
+ /|=|\
+  | |
+ _/ \_
+
+@zombie
+ [o_x]
+ /|_|\
+  | |
+ /   \
+
+@vampire
+ (^v^)
+ (o_o)
+ /|#|\
+ _/ \_
+
+@alien
+ (~~~)
+ (o o)
+ \ - /
+ /| |\
+
+@astronaut
+ .---.
+(o   o)
+( [#] )
+ /| |\
+
+@princess
+ \o^o/
+ (o.o)
+ /|#|\
+ _/ \_
+
+@farmer
+  ___
+ (o_o)
+ /|H|\
+ _/ \_
+
+@chef
+ [===]
+ (o.o)
+ /|U|\
+ _/ \_
+
+@clown
+ \o.o/
+ (>o<)
+ /|O|\
+ _/ \_
+
+@viking
+ \-V-/
+ (o.o)
+ /|#|\
+ _/ \_
+
+@samurai
+ _/\_
+(o  o)
+ /|#|\
+ _/ \_
+
+@mermaid
+ (o.o)
+ /|#|\
+ (~~~)
+ >~~<
+
+@genie
+ (o.o)
+ \|#|/
+  )(
+ (~~~)
+
+@snowman
+ _.-._
+( o o )
+( ( ) )
+(_____)
+
+@scarecrow
+ .-^-.
+(o . o)
+-/|#|\-
+  | |
+
+@devil
+ \^^^/
+ (o.o)
+ /|#|\
+ _/ \_
+
+@elf
+ /^^^\
+ (o.o)
+ /|#|\
+ _/ \_
+
+@dwarf
+ (###)
+ (o,o)
+ {===}
+ _/ \_
+
+@troll
+ (o..o)
+ ( vv )
+/|    |\
+ |    |
+
+# ── scenery / background props ────────────────────────────────────────────────
+@cactus
+   _
+ _| |_
+| | | |
+|_| |_|
+  | |
+  |_|
+
+@pine
+   /\
+  /  \
+ /----\
+/______\
+   ||
+
+@bush
+ (%%%)
+(%%%%%)
+(%%%%%%%)
+ "" "" "
+
+@rock
+   ___
+  /   \
+ /_____\
+
+@bigtree
+  (@@@)
+ (@@@@@)
+(@@@@@@@)
+   |||
+   |||
+
+@oven
+  ____ 
+ / __ \
+ |(__)|
+ |_~~_|
+
+@campfire
+  )^(
+ (/^\)
+(/\^/\)
+ //||\\

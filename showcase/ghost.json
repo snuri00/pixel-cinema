@@ -1,0 +1,116 @@
+{
+  "title": "The Ghost of the Mansion",
+  "logline": "A small, shy ghost learns to overcome her fear of humans and finds a new friend.",
+  "shots": [
+    {
+      "narration": "A small, white glint flickers by the window, barely noticeable.",
+      "cast": [
+        "ghost",
+        "door"
+      ],
+      "action": "rise",
+      "setting": "earth",
+      "mood": [],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The glint grows larger, a warm light that seems to glow with a deep sadness.",
+      "cast": [
+        "ghost"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [],
+      "camera": "static",
+      "dialogue": ""
+    },
+    {
+      "narration": "The glint transforms into a small, wistful figure, hovering just outside the window.",
+      "cast": [
+        "ghost",
+        "monster",
+        "door"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "mood": [],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The figure fades away until only the glint remains, a fading echo of a lost smile.",
+      "cast": [
+        "ghost",
+        "monster"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "mood": [],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The glint shimmers, then solidifies into a small, trembling figure, holding onto a single, crumpled piece of paper.",
+      "cast": [
+        "ghost",
+        "monster"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The figure sits on the floor, the paper crumpled in her small hand, eyes wide and desperate.",
+      "cast": [
+        "ghost",
+        "monster"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "A soft knock on the door causes a small stir within the figure, but she huddles deeper into the shadows.",
+      "cast": [
+        "ghost",
+        "door",
+        "monster"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "shake",
+      "dialogue": "",
+      "mood": []
+    },
+    {
+      "narration": "The figure snatches the paper tightly, her eyes fixed on the creases, then dashes away into the darkness, the paper still clutched in her tiny hand.",
+      "cast": [
+        "ghost",
+        "monster"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [],
+      "camera": "push",
+      "dialogue": ""
+    },
+    {
+      "narration": "The figure emerges from the shadows, the paper still clutched in her hand, standing at the window, eyes wide with trembling excitement.",
+      "cast": [
+        "ghost",
+        "monster",
+        "door"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "camera": "static",
+      "dialogue": "",
+      "mood": []
+    }
+  ]
+}

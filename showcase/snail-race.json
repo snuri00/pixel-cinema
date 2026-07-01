@@ -1,0 +1,123 @@
+{
+  "title": "The Race of the Wind",
+  "logline": "A snail dreams of racing the wind, but must first face the shadows beneath the clouds.",
+  "shots": [
+    {
+      "narration": "A small snail dreams of racing the wind.",
+      "cast": [
+        "snail"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "mood": [
+        "dreamy"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "It feels like a gentle breeze, but it's not enough to reach the sky.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "sad"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The wind starts to pick up, but the snail slips back, disappointed.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "sad"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The snail tries again, climbing higher and faster, but still stumbles.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "sad"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The wind grows stronger, the snail's shell trembles, and it feels the danger.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "scared"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The snail retreats, losing sight of the wind, but it knows it can't give up.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "dreamy"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The wind grows even stronger, and the snail feels the fear of being left behind.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "scared"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The snail's shell is cracked, and it knows it must find a way to overcome the wind.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "scared"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The snail's determination kicks in, and it rises to face the wind, its shell shimmering with focus.",
+      "cast": [
+        "snail"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "happy"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    }
+  ]
+}

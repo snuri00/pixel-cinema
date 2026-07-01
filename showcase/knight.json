@@ -1,0 +1,132 @@
+{
+  "title": "The Tiny Knight",
+  "logline": "A tiny knight learns to face his fear of the dark.",
+  "shots": [
+    {
+      "narration": "In the shadows, a tiny knight sits alone, his heart heavy.",
+      "cast": [
+        "knight"
+      ],
+      "action": "rise",
+      "setting": "earth",
+      "camera": "static",
+      "dialogue": "just a little scary...",
+      "mood": []
+    },
+    {
+      "narration": "He's always had nightmares, but tonight the fear has spilled out of his dreams and taken up real space.",
+      "cast": [
+        "knight"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "scared"
+      ],
+      "dialogue": "what's outside?",
+      "camera": "static"
+    },
+    {
+      "narration": "The room darkens, and the knight's heart beats faster, his mind racing with worst-case scenarios.",
+      "cast": [
+        "knight"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "scared"
+      ],
+      "dialogue": "there's something here...",
+      "camera": "static"
+    },
+    {
+      "narration": "In the silence, a small shadow stirs, and the knight's knight-hood stirs to life.",
+      "cast": [
+        "knight",
+        "monster"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "camera": "shake",
+      "dialogue": "",
+      "mood": []
+    },
+    {
+      "narration": "He draws his sword, the metal ringing with the promise of protection.",
+      "cast": [
+        "knight",
+        "sword"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "dialogue": "protect me...",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "But the shadow grows, and the knight's fear twists into something else \u2014 doubt.",
+      "cast": [
+        "knight",
+        "monster"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "sad"
+      ],
+      "dialogue": "i'm not brave enough...",
+      "camera": "static"
+    },
+    {
+      "narration": "The room cracks open, and a small, dark thing crawls out from the shadows.",
+      "cast": [
+        "knight"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "camera": "push",
+      "dialogue": "what is it?",
+      "mood": []
+    },
+    {
+      "narration": "It's no bigger than his hand, but its eyes gleam with a power that the knight feels he can't match.",
+      "cast": [
+        "knight"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "fearful"
+      ],
+      "dialogue": "get out...",
+      "camera": "static"
+    },
+    {
+      "narration": "The knight can't shake the feeling that it's watching him, waiting for him to let his fear give way.",
+      "cast": [
+        "knight"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "scared"
+      ],
+      "dialogue": "i'll be brave...",
+      "camera": "static"
+    },
+    {
+      "narration": "The shadow disappears, but the knight is left standing alone, his heart beating faster than it ever has before.",
+      "cast": [
+        "knight",
+        "monster"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "scared"
+      ],
+      "dialogue": "i'll face it...",
+      "camera": "static"
+    }
+  ]
+}

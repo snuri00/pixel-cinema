@@ -1,0 +1,114 @@
+{
+  "title": "A lonely robot finds a stray cat",
+  "logline": "A lonely robot finds a stray cat",
+  "shots": [
+    {
+      "narration": "A lonely robot sits on a gray floor.",
+      "cast": [
+        "robot"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "The robot's eyes blink slowly as the room fades to black.",
+      "cast": [
+        "robot"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "A tiny, fluffy cat appears before the robot, jumping onto its shoulder.",
+      "cast": [
+        "robot",
+        "cat"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "The robot blinks slowly again as the cat nuzzles its side.",
+      "cast": [
+        "robot",
+        "cat"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "The sudden warmth makes the robot's circuits hum, a tiny, comforting thrill.",
+      "cast": [
+        "robot",
+        "cat"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "happy"
+      ],
+      "dialogue": "hello?",
+      "camera": "static"
+    },
+    {
+      "narration": "The robot sits in silence, watching the cat, feeling strange and new.",
+      "cast": [
+        "robot",
+        "cat"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "The cat drowses, purring softly, and the robot feels an odd, warm light.",
+      "cast": [
+        "robot",
+        "cat"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "The cat leaps down, and the robot watches, puzzled, as it disappears into the shadows.",
+      "cast": [
+        "robot",
+        "cat"
+      ],
+      "action": "exit",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "The robot waits, heart light, as the room fades to black and the cat returns.",
+      "cast": [
+        "robot",
+        "cat"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    }
+  ]
+}

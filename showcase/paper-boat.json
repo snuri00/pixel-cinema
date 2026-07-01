@@ -1,0 +1,121 @@
+{
+  "title": "The Paper Boat",
+  "logline": "A folded paper boat braves the storm drains to reach the sea it has only dreamed of.",
+  "shots": [
+    {
+      "narration": "Rain hammers the gutter; a folded paper boat shivers against the cold curb.",
+      "cast": [
+        "ship"
+      ],
+      "action": "rise",
+      "setting": "road",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "All it has ever wanted is the sea \u2014 a blue it knows only from stories.",
+      "cast": [
+        "ship"
+      ],
+      "action": "gather",
+      "setting": "road",
+      "mood": [
+        "dreamy"
+      ],
+      "dialogue": "someday...",
+      "camera": "static"
+    },
+    {
+      "narration": "A swell tears it loose and drags it spinning into the roaring drain.",
+      "cast": [
+        "ship"
+      ],
+      "action": "enter",
+      "setting": "water",
+      "camera": "pan",
+      "dialogue": "",
+      "mood": []
+    },
+    {
+      "narration": "In the black tunnel a lost goldfish surfaces beside it, fins trembling.",
+      "cast": [
+        "ship",
+        "fish"
+      ],
+      "action": "enter",
+      "setting": "water",
+      "mood": [
+        "",
+        "scared"
+      ],
+      "dialogue": "lost too?",
+      "camera": "static"
+    },
+    {
+      "narration": "Side by side they ride the current, daring the dark together.",
+      "cast": [
+        "ship",
+        "fish"
+      ],
+      "action": "gather",
+      "setting": "water",
+      "dialogue": "",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "A rusted grate slams the only salt-smelling path shut.",
+      "cast": [
+        "ship",
+        "fish"
+      ],
+      "action": "gather",
+      "setting": "stone",
+      "dialogue": "no way through...",
+      "camera": "static",
+      "mood": []
+    },
+    {
+      "narration": "The little boat sags, soaked soft, its paper hull peeling apart.",
+      "cast": [
+        "ship"
+      ],
+      "action": "gather",
+      "setting": "water",
+      "mood": [
+        "sad"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The goldfish heaves it onto a leaf and shoves it through the bars.",
+      "cast": [
+        "ship",
+        "fish",
+        "tree"
+      ],
+      "action": "rise",
+      "setting": "water",
+      "camera": "shake",
+      "dialogue": "",
+      "mood": []
+    },
+    {
+      "narration": "The tunnel opens \u2014 and there it is, the endless silver sea.",
+      "cast": [
+        "ship",
+        "moon"
+      ],
+      "action": "gather",
+      "setting": "water",
+      "camera": "push",
+      "mood": [
+        "happy",
+        ""
+      ],
+      "dialogue": "we made it."
+    }
+  ]
+}

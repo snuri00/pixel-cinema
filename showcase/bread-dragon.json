@@ -1,0 +1,141 @@
+{
+  "title": "The Dragon's Bake-Off",
+  "logline": "A dragon who would rather bake than fight sets out to win a culinary contest, discovering the power of friendship in the process.",
+  "shots": [
+    {
+      "narration": "A dragon perches atop a mountain, wings outspread, nursing a bubbling cauldron of steaming bread.",
+      "cast": [
+        "dragon",
+        "mountain"
+      ],
+      "action": "rise",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "A puff of smoke escapes its nostrils, the flame flickering as it regards the mountain below.",
+      "cast": [
+        "dragon",
+        "campfire",
+        "mountain"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "dreamy"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "A crackling fire dies down, and the dragon's eyes narrow with frustration as the bread goes cold.",
+      "cast": [
+        "dragon",
+        "campfire"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "shake",
+      "mood": [
+        "sad"
+      ],
+      "dialogue": ""
+    },
+    {
+      "narration": "The dragon's gaze falls upon a distant valley, its eyes brightening with a new idea.",
+      "cast": [
+        "dragon"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "camera": "static",
+      "dialogue": "",
+      "mood": []
+    },
+    {
+      "narration": "It flaps its wings, sending a soft gust of wind down the mountain, carrying the scent of fresh bread.",
+      "cast": [
+        "dragon",
+        "mountain"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "happy"
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The dragon's heart swells with a new sense of purpose, and it sets off towards the valley below.",
+      "cast": [
+        "dragon"
+      ],
+      "action": "enter",
+      "setting": "earth",
+      "camera": "pan",
+      "mood": [],
+      "dialogue": ""
+    },
+    {
+      "narration": "Around a corner, it meets a small, hungry mouse with a dream of its own.",
+      "cast": [
+        "dragon",
+        "mouse"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "fear",
+        ""
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The mouse leaps from the shadows, eyes wide with curiosity, and asks the dragon to help it bake a cake.",
+      "cast": [
+        "dragon",
+        "mouse"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "dialogue": "can you help me?",
+      "mood": []
+    },
+    {
+      "narration": "The dragon hesitates, torn between its love of baking and its warrior instincts, but something about the mouse's plea pulls it in.",
+      "cast": [
+        "dragon",
+        "mouse",
+        "samurai"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "mood": [
+        "sad",
+        ""
+      ],
+      "dialogue": "",
+      "camera": "static"
+    },
+    {
+      "narration": "The dragon agrees, and together they embark on a journey to the town's grand baking contest, where the dragon's true power is revealed.",
+      "cast": [
+        "dragon",
+        "mouse"
+      ],
+      "action": "gather",
+      "setting": "earth",
+      "camera": "static",
+      "mood": [
+        "happy",
+        ""
+      ],
+      "dialogue": ""
+    }
+  ]
+}

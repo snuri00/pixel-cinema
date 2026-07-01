@@ -1,0 +1,12 @@
+# Secrets — never commit the API key
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Generated, machine-specific asset caches + previews
+*_cache.json
+bg_cache/
+_*.png
+_*.gif

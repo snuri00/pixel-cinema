@@ -1,0 +1,3 @@
+gradio==6.16.0
+Pillow
+anthropic>=0.40.0          # Anthropic Messages API client (Claude / DeepSeek-anthropic endpoint)
