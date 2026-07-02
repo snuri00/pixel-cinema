@@ -648,7 +648,7 @@ function finishPlayback(){if(playTimer){clearInterval(playTimer);playTimer=null;
 function playTick(){if(paused)return;
   if(idx<buf.length){renderFilmFrame(buf[idx++]);updProg();}
   else if(streamDone)finishPlayback();}
-function startBufferedPlay(){phase='playing';idx=0;paused=false;lastShot=-1;paintPause();
+function startBufferedPlay(){creditsTimer=null;phase='playing';idx=0;paused=false;lastShot=-1;paintPause();
   curt(true);hum(true);
   playTimer=setInterval(playTick,150);}
 function seek(ev){if(!buf.length)return;
