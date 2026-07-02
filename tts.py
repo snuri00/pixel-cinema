@@ -12,6 +12,7 @@ Kokoro-82M is near-realtime on CPU. Override per deploy:
     CLAUDEMOVIES_TTS=0                # disable narration entirely
     CLAUDEMOVIES_TTS_DEVICE=cpu      # cpu (default) | cuda | auto (cuda if >=2 GB free)
     CLAUDEMOVIES_TTS_VOICE=bm_george # narrator voice id (male storyteller by default)
+    CLAUDEMOVIES_TTS_SPEED=0.9       # speech pace, 0.5-1.5 (0.9 = calm storytelling)
 
 Leaf module: imports kokoro/torch lazily; degrades to silence if they're missing.
 """
@@ -28,6 +29,10 @@ import threading
 ENABLED = os.environ.get("CLAUDEMOVIES_TTS", "1") != "0"
 DEVICE = os.environ.get("CLAUDEMOVIES_TTS_DEVICE", "cpu").strip().lower()
 NARRATOR = os.environ.get("CLAUDEMOVIES_TTS_VOICE", "bm_george").strip()
+try:
+    SPEED = max(0.5, min(1.5, float(os.environ.get("CLAUDEMOVIES_TTS_SPEED", "0.9"))))
+except ValueError:
+    SPEED = 0.9
 
 CAST_POOL = ("af_heart", "af_bella", "af_nicole", "af_sky", "am_adam", "am_michael",
              "am_fenrir", "am_puck", "am_onyx", "bf_emma", "bf_isabella",
@@ -100,7 +105,7 @@ def _synth(text: str, voice: str):
     pipe = _pipe(voice[0])
     chunks = []
     with _LOCK:
-        for item in pipe(text, voice=voice):
+        for item in pipe(text, voice=voice, speed=SPEED):
             audio = getattr(item, "audio", None)
             if audio is None:
                 audio = item[2]
@@ -115,7 +120,7 @@ def _synth(text: str, voice: str):
 def _segment_wav(text: str, voice: str):
     """The synthesised float32 array for one (voice, line), cached on disk."""
     import soundfile as sf
-    key = hashlib.sha256((voice + "|" + text).encode("utf-8")).hexdigest()[:20]
+    key = hashlib.sha256(f"{voice}|{SPEED}|{text}".encode("utf-8")).hexdigest()[:20]
     path = os.path.join(_DIR, key + ".wav")
     if not os.path.exists(path):
         wav = _synth(text, voice)

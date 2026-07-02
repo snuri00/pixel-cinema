@@ -580,9 +580,10 @@ def _subtitle(scene: Image.Image, text: str):
 
 def _hold(shot: dict) -> int:
     """How many displayed frames this shot dwells — scales with text so subtitles stay
-    up long enough to read (the player ticks ~150ms/frame, matching the ASCII path)."""
+    readable and the narrator (paced at ~0.9x) can finish the line before the cut
+    (the player ticks ~150ms/frame, matching the ASCII path)."""
     chars = len(shot.get("narration", "")) + len(shot.get("dialogue", ""))
-    return max(16, min(48, 14 + chars // 3))
+    return max(16, min(52, 14 + int(chars / 2.6)))
 
 
 def _shot_tick_frames(shot: dict, index: int, variant: int = 0,

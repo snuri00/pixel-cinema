@@ -97,6 +97,7 @@ back to the `llm` / `procedural` backends and the pre-written gallery still play
 | `CLAUDEMOVIES_TTS` | `1` narration voice on (default) · `0` off |
 | `CLAUDEMOVIES_TTS_DEVICE` | `cpu` (default, keeps VRAM for SD) \| `cuda` \| `auto` (cuda if ≥2 GB free) |
 | `CLAUDEMOVIES_TTS_VOICE` | Narrator voice id (default `bm_george`, a male storyteller; characters pick their own voices from a pool) |
+| `CLAUDEMOVIES_TTS_SPEED` | Speech pace `0.5`–`1.5` (default `0.9` — calm storytelling) |
 | `CLAUDEMOVIES_SD_MODEL` | Pixel-art SD 1.5 model id |
 | `CLAUDEMOVIES_SD_OFFLOAD` | `1` CPU-offload (low VRAM) · `0` full GPU (fast) |
 | `CLAUDEMOVIES_SD_GEN` | Generation resolution (lower = less VRAM) |

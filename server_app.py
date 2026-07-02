@@ -581,7 +581,11 @@ function welcomeHTML(){const title=GLYPH?("<pre class='wel-title'>"+asciiTitle()
 function welcome(){playing(false);hideChoices();curt(true);hum(false);marqueeEl.textContent='';
   screen.innerHTML=welcomeHTML();}
 function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function renderFilmFrame(d){show(d.html);playing(true);
+function renderFilmFrame(d){
+  const cur=screen.querySelector('img.pixfilm');
+  if(d.pix&&cur){const m=d.html.match(/src='([^']+)'/);if(m)cur.src=m[1];}
+  else show(d.html);
+  playing(true);
   if(typeof d.shot==='number'&&d.shot!==lastShot){
     if(lastShot>=0){if(curShots&&d.shot>=curShots)endChord();else blip(1180,0.05,0.028);}
     lastShot=d.shot;
