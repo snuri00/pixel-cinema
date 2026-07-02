@@ -34,10 +34,15 @@ proper **THE END** card.
   chiptune cues via Web Audio, with a mute toggle.
 - **Adventure mode.** "Adventure" turns your idea into an interactive film told in chunks:
   at each cliffhanger the audience picks what happens next, until the story earns its ending.
-- **Narration (local TTS).** Each shot's narration is voiced by **Kokoro-82M** on your machine
-  (the same realtime pipeline as small-talk), synthesised in a background thread while the film
-  streams and cached per line in `tts_cache/`. Runs on CPU by default so the GPU stays free for
-  the SD backend; needs `pip install kokoro soundfile` (falls back to silence without them).
+- **Narration (local TTS).** A male narrator (**Kokoro-82M**, `bm_george` by default — the same
+  realtime pipeline as small-talk) reads each shot's narration, then the speaking character
+  delivers its dialogue in its **own voice**, hash-picked per subject from a pool so a character
+  sounds the same across shots, chunks and replays. Synthesised in a background thread while
+  the film streams, cached per line in `tts_cache/`. Runs on CPU by default so the GPU stays
+  free for the SD backend; needs `pip install kokoro soundfile` (falls back to silence).
+- **Genre picker.** A dropdown next to the concept box (comedy, action, spooky, noir, ...)
+  steers the director: the chosen genre is written into the screenplay brief, for both normal
+  films and adventures.
 - **Theatrical staging.** Each shot is choreographed, not looped: `enter` walks in from
   off-screen, `exit` leaves, `chase` pursues, `rise` floats up — with facing flips and a real
   stride cycle. The camera pans / pushes (Ken Burns) / shakes over an oversized world canvas.
@@ -91,7 +96,7 @@ back to the `llm` / `procedural` backends and the pre-written gallery still play
 | `CLAUDEMOVIES_SPRITE_VARIANTS` | Distinct SD/LLM sprite looks cached per subject (default `3`) — each film picks one, so "cat" isn't the same cat in every film |
 | `CLAUDEMOVIES_TTS` | `1` narration voice on (default) · `0` off |
 | `CLAUDEMOVIES_TTS_DEVICE` | `cpu` (default, keeps VRAM for SD) \| `cuda` \| `auto` (cuda if ≥2 GB free) |
-| `CLAUDEMOVIES_TTS_VOICE` | Kokoro voice id (default `af_heart`) |
+| `CLAUDEMOVIES_TTS_VOICE` | Narrator voice id (default `bm_george`, a male storyteller; characters pick their own voices from a pool) |
 | `CLAUDEMOVIES_SD_MODEL` | Pixel-art SD 1.5 model id |
 | `CLAUDEMOVIES_SD_OFFLOAD` | `1` CPU-offload (low VRAM) · `0` full GPU (fast) |
 | `CLAUDEMOVIES_SD_GEN` | Generation resolution (lower = less VRAM) |

@@ -35,6 +35,13 @@ os.makedirs(POSTERS, exist_ok=True)
 _MADE_RE = re.compile(r"^[0-9a-f]{12}$")
 _POSTER_LOCK = threading.Lock()
 ADV: dict = {}
+GENRES = ("comedy", "action", "adventure", "drama", "romance", "mystery",
+          "spooky", "sci-fi", "fairy tale", "western", "noir", "slice of life")
+
+
+def _genre(g):
+    g = (g or "").strip().lower()
+    return g if g in GENRES else ""
 
 # Which renderer stages the film: the new PIXEL scene (default) or the original ASCII grid.
 # Override per deploy with CLAUDEMOVIES_RENDER=ascii|pixel.
@@ -171,10 +178,22 @@ def _prewarm_payloads(spec):
             yield {"phase": "set", "label": str(ev.get("label") or "")[:40]}
 
 
+def _speaker(sh):
+    """Which cast member delivers the shot's dialogue — mirrors the pixel stage's
+    rule: the first member with a mood, else the first member."""
+    cast = [c for c in (sh.get("cast") or [])][:3] or ["hero"]
+    moods = sh.get("mood") if isinstance(sh.get("mood"), list) else []
+    for i, c in enumerate(cast):
+        if i < len(moods) and str(moods[i] or "").strip():
+            return c
+    return cast[0]
+
+
 def _film_payloads_with_audio(spec, end=True):
-    """Frames + per-shot narration audio. Kokoro synthesis runs in a background thread
-    (each line cached on disk); finished lines are interleaved into the frame stream as
-    {"audio": <wav data-uri>, "shot": i} so the player can voice each shot as it opens."""
+    """Frames + per-shot audio. The narrator (male, CLAUDEMOVIES_TTS_VOICE) reads the
+    narration, then the speaking character delivers its dialogue in its own stable
+    voice. Kokoro synthesis runs in a background thread (each line cached on disk);
+    finished clips are interleaved into the frame stream as {"audio": ..., "shot": i}."""
     if RENDER_MODE == "ascii" or not tts.available():
         yield from _film_payloads(spec, end)
         return
@@ -182,9 +201,14 @@ def _film_payloads_with_audio(spec, end=True):
 
     def worker():
         for i, sh in enumerate(spec.get("shots", [])):
-            txt = " ".join(x for x in ((sh.get("narration") or "").strip(),
-                                       (sh.get("dialogue") or "").strip()) if x)
-            results[i] = tts.say_datauri(txt) if txt else None
+            segs = []
+            narr = (sh.get("narration") or "").strip()
+            dlg = (sh.get("dialogue") or "").strip().strip('"')
+            if narr:
+                segs.append((narr, ""))
+            if dlg:
+                segs.append((dlg, tts.voice_for(_speaker(sh))))
+            results[i] = tts.say_segments(segs) if segs else None
     threading.Thread(target=worker, daemon=True).start()
     sent = set()
 
@@ -332,12 +356,24 @@ body.playing #spill{opacity:1}
 #controls button:hover{filter:brightness(1.18)}
 #go{background:linear-gradient(92deg,var(--accent),var(--accent2));color:#04130d}
 #stop{color:#ff8a84;background:#16191f;border:1px solid #3a2a2c}
-#gallery{display:flex;gap:8px;overflow-x:auto;max-width:1120px;margin:0 auto;width:100%;
-  padding-bottom:3px;scrollbar-width:thin}
-#gallery .film{flex:0 0 auto;background:rgba(12,15,20,.8);border:1px solid #2b3540;color:#aeb6c2;
-  border-radius:9px;padding:8px 13px;font-size:12px;cursor:pointer;white-space:nowrap}
-#gallery .film:hover{color:#fff;border-color:var(--accent)}
-#gallery::-webkit-scrollbar{height:6px}#gallery::-webkit-scrollbar-thumb{background:#2a3340;border-radius:3px}
+#genre{background:rgba(11,14,18,.92);border:1px solid #2b3540;border-radius:11px;color:var(--ink);
+  padding:12px 10px;font:13px 'JetBrains Mono',monospace;cursor:pointer;max-width:150px}
+#genre:focus{outline:none;border-color:var(--accent)}
+#shelves{display:flex;gap:14px;max-width:1120px;margin:0 auto;width:100%;align-items:flex-start}
+.shelf{flex:1;min-width:0}
+.shelf h4{margin:0 0 6px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:#7d8896;font-weight:700}
+.shelf .list{display:flex;flex-direction:column;gap:6px;max-height:128px;overflow-y:auto;
+  padding-right:4px;scrollbar-width:thin}
+.shelf .list::-webkit-scrollbar{width:6px}
+.shelf .list::-webkit-scrollbar-thumb{background:#2a3340;border-radius:3px}
+.shelf .film{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:rgba(12,15,20,.8);border:1px solid #2b3540;color:#aeb6c2;
+  border-radius:9px;padding:5px 8px;font-size:12px;cursor:pointer}
+.shelf .film:hover{color:#fff;border-color:var(--accent)}
+.shelf .film img{width:64px;height:36px;border-radius:4px;display:block;flex:0 0 auto;
+  image-rendering:pixelated;background:#0a0e14}
+.shelf .film span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #curtains{position:fixed;z-index:2;pointer-events:none;overflow:hidden}
 #curtains .cl,#curtains .cr{position:absolute;top:0;bottom:0;width:52%;
   background:linear-gradient(90deg,#081824,#123245 26%,#0a2130 52%,#123245 78%,#081824);
@@ -364,13 +400,6 @@ body.playing #progrow{display:flex}
 #shotlab{font-size:11px;color:#93a0ad;min-width:52px;text-align:right}
 #queuechip{max-width:1120px;margin:0 auto;width:100%;font-size:11px;color:#8b96a4}
 #queuechip:not(:empty){margin-bottom:6px}
-#myrow{display:none;gap:8px;overflow-x:auto;max-width:1120px;margin:0 auto 8px;width:100%;align-items:center}
-#myrow.on{display:flex}
-.rowlab{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#7d8896;flex:0 0 auto}
-#gallery .film,#myrow .film{display:flex;flex-direction:column;gap:5px;align-items:center;padding:6px 8px 7px}
-#gallery .film img,#myrow .film img{width:96px;height:54px;border-radius:5px;display:block;
-  image-rendering:pixelated;background:#0a0e14;border:0}
-#gallery .film span,#myrow .film span{max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #credcast{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:2px}
 #credcast .cred{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9px;
   letter-spacing:.16em;text-transform:uppercase;color:#aab4c0}
@@ -380,7 +409,10 @@ body.playing #progrow{display:flex}
    phone's home indicator with the safe-area inset ── */
 @media (max-width:680px){
   #marquee{display:none}
-  #gallery .film img,#myrow .film img{width:72px;height:40px}
+  #shelves{flex-direction:column;gap:8px}
+  .shelf .list{max-height:92px}
+  .shelf .film img{width:52px;height:30px}
+  #genre{flex:1 1 100%;max-width:none;font-size:12px;padding:10px}
   #choices .chb{font-size:11px;padding:8px 10px}
   /* on mobile, placeScreen() zooms the photo so the theatre screen fills the width and pins
      #screen to it (nothing cut off). The photo-reveal glow assumes desktop cover, so hide it. */
@@ -434,6 +466,13 @@ pre#loadtitle{margin:0;white-space:pre;line-height:1.0;font-size:clamp(5px,1.0vw
   <div id=crow>
     <input id=concept maxlength=60 autocomplete=off spellcheck=false
       placeholder="Describe your film — e.g. a tiny knight afraid of the dark">
+    <select id=genre>
+      <option value="">any genre</option>
+      <option>comedy</option><option>action</option><option>adventure</option>
+      <option>drama</option><option>romance</option><option>mystery</option>
+      <option>spooky</option><option>sci-fi</option><option>fairy tale</option>
+      <option>western</option><option>noir</option><option>slice of life</option>
+    </select>
     <button id=go>&#9654; Make &amp; play</button>
     <button id=adv>&#8943; Adventure</button>
     <button id=surprise>Surprise</button>
@@ -445,8 +484,10 @@ pre#loadtitle{margin:0;white-space:pre;line-height:1.0;font-size:clamp(5px,1.0vw
     <button id=fs>&#9974;</button>
   </div>
   <div id=queuechip></div>
-  <div id=myrow></div>
-  <div id=gallery></div>
+  <div id=shelves>
+    <div class=shelf id=galshelf><h4>tonight's programme</h4><div class=list id=gallery></div></div>
+    <div class=shelf id=myshelf style="display:none"><h4>your films</h4><div class=list id=myrow></div></div>
+  </div>
 </div>
 <script>
 const screen=document.getElementById('screen');
@@ -586,7 +627,7 @@ function curtainReveal(){phase='reveal';fadeCard();curt(false);
   creditsTimer=setTimeout(()=>{if(buf.length)show(buf[0].html);
     creditsTimer=setTimeout(()=>{curt(true);
       creditsTimer=setTimeout(startBufferedPlay,600);},400);},1500);}
-function updQueue(){queueEl.textContent=queue.length?('next up: '+queue.join(' · ')):'';}
+function updQueue(){queueEl.textContent=queue.length?('next up: '+queue.map(q=>q.c).join(' · ')):'';}
 function updProg(){if(!buf.length){pfill.style.width='0%';shotlab.textContent='';return;}
   const j=Math.max(0,Math.min(idx,buf.length-1)),d=buf[j];
   pfill.style.width=(100*Math.min(1,(j+1)/buf.length)).toFixed(1)+'%';
@@ -599,7 +640,7 @@ function finishPlayback(){if(playTimer){clearInterval(playTimer);playTimer=null;
   phase=null;hum(false);updProg();
   if(pendingBranch){const br=pendingBranch;pendingBranch=null;showChoices(br);return;}
   playing(false);curt(true);
-  if(queue.length){const c=queue.shift();updQueue();startMake(c);}}
+  if(queue.length){const q=queue.shift();updQueue();startMake(q.c,q.g);}}
 function playTick(){if(paused)return;
   if(idx<buf.length){renderFilmFrame(buf[idx++]);updProg();}
   else if(streamDone)finishPlayback();}
@@ -661,18 +702,20 @@ function poster(){const last=buf[buf.length-1];if(!last||!last.pix)return;
   const a=document.createElement('a');a.href=m[1];
   a.download=((curTitle||'pixel-cinema').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-poster.png');
   document.body.appendChild(a);a.click();a.remove();}
-const concept=document.getElementById('concept');
+const concept=document.getElementById('concept'), genreSel=document.getElementById('genre');
 function active(){return !!(es||playTimer||creditsTimer||phase);}
-function startMake(c){initAudio();stream('api/make?concept='+encodeURIComponent(c));}
-function make(){const c=concept.value.trim().slice(0,60);
+function gpart(g){return g?('&genre='+encodeURIComponent(g)):'';}
+function startMake(c,g){initAudio();stream('api/make?concept='+encodeURIComponent(c)+gpart(g));}
+function make(){const c=concept.value.trim().slice(0,60),g=genreSel.value;
   if(!c){concept.focus();return;}
-  if(active()){queue.push(c);updQueue();concept.value='';return;}
-  startMake(c);}
+  if(active()){queue.push({c:c,g:g});updQueue();concept.value='';return;}
+  startMake(c,g);}
 document.getElementById('go').onclick=make;
 concept.addEventListener('keydown',e=>{if(e.key==='Enter')make();});
-document.getElementById('adv').onclick=()=>{const c=concept.value.trim().slice(0,60);
+document.getElementById('adv').onclick=()=>{const c=concept.value.trim().slice(0,60),g=genreSel.value;
   if(!c){concept.focus();return;}
-  initAudio();stream('api/adventure?concept='+encodeURIComponent(c),'writing your adventure, please wait');};
+  initAudio();stream('api/adventure?concept='+encodeURIComponent(c)+gpart(g),
+    'writing your adventure, please wait');};
 document.getElementById('surprise').onclick=()=>{const c=SURPRISES[Math.floor(Math.random()*SURPRISES.length)];
   concept.value=c;make();};
 document.getElementById('replay').onclick=replay;
@@ -699,11 +742,8 @@ function saveMyFilm(id,title){const l=myFilms().filter(f=>f.id!==id);
   l.unshift({id:id,title:title||'untitled'});
   try{localStorage.setItem('pc_films',JSON.stringify(l.slice(0,12)));}catch(e){}
   renderMy();}
-function renderMy(){const row=document.getElementById('myrow');const l=myFilms();
-  row.innerHTML='';row.classList.toggle('on',l.length>0);
-  if(!l.length)return;
-  const lab=document.createElement('span');lab.className='rowlab';lab.textContent='your films';
-  row.appendChild(lab);
+function renderMy(){const row=document.getElementById('myrow'),shelf=document.getElementById('myshelf');
+  const l=myFilms();row.innerHTML='';shelf.style.display=l.length?'':'none';
   l.forEach(f=>row.appendChild(filmChip(f.title,'api/poster?made='+f.id,
     ()=>{initAudio();stream('api/play_made?id='+f.id);})));}
 renderMy();
@@ -801,8 +841,9 @@ def poster(name: str = "", made: str = ""):
 
 
 @server.get("/api/make")
-def make(concept: str):
+def make(concept: str, genre: str = ""):
     concept = _clean_concept(concept)               # sanitise + hard 60-char cap (authoritative)
+    genre = _genre(genre)
 
     def frames():
         if not concept:
@@ -815,7 +856,7 @@ def make(concept: str):
 
         def work():
             try:
-                result["spec"] = movies.direct(concept)
+                result["spec"] = movies.direct(concept, genre=genre)
             except Exception as e:
                 result["error"] = f"{type(e).__name__}: {e}"
         th = threading.Thread(target=work, daemon=True)
@@ -839,13 +880,13 @@ def make(concept: str):
     return StreamingResponse(_sse(frames()), media_type="text/event-stream")
 
 
-def _adv_stream(sid: str, concept: str, history: str, choice: str, first: bool):
+def _adv_stream(sid: str, concept: str, history: str, choice: str, first: bool, genre: str = ""):
     def frames():
         result = {}
 
         def work():
             try:
-                result["chunk"] = movies.direct_branch(concept, history, choice)
+                result["chunk"] = movies.direct_branch(concept, history, choice, genre=genre)
             except Exception as e:
                 result["error"] = f"{type(e).__name__}: {e}"
         th = threading.Thread(target=work, daemon=True)
@@ -879,8 +920,9 @@ def _adv_stream(sid: str, concept: str, history: str, choice: str, first: bool):
 
 
 @server.get("/api/adventure")
-def adventure(concept: str):
+def adventure(concept: str, genre: str = ""):
     concept = _clean_concept(concept)
+    genre = _genre(genre)
     if not concept or _blocked(concept) or _INJECT.search(concept):
         msg = ("Type a short film idea to begin.", "ready") if not concept else \
               ("Let's keep it friendly — try a kind, fun film idea.", "blocked")
@@ -891,8 +933,8 @@ def adventure(concept: str):
     if len(ADV) > 200:
         ADV.clear()
     sid = uuid.uuid4().hex[:12]
-    ADV[sid] = {"concept": concept, "history": "", "title": concept[:30]}
-    return _adv_stream(sid, concept, "", "", True)
+    ADV[sid] = {"concept": concept, "history": "", "title": concept[:30], "genre": genre}
+    return _adv_stream(sid, concept, "", "", True, genre)
 
 
 @server.get("/api/adventure_next")
@@ -904,7 +946,7 @@ def adventure_next(id: str, choice: str = ""):
     if _blocked(choice) or _INJECT.search(choice):
         choice = "press on"
     sess["history"] += f"\nTHE VIEWER CHOSE: {choice}\n"
-    return _adv_stream(id, sess["concept"], sess["history"], choice, False)
+    return _adv_stream(id, sess["concept"], sess["history"], choice, False, sess.get("genre", ""))
 
 
 if __name__ == "__main__":

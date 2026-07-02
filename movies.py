@@ -553,16 +553,19 @@ def _sanitize_shot(sh: dict, concept: str = "") -> dict:
     return sh
 
 
-def direct(concept: str, title: str | None = None):
+def direct(concept: str, title: str | None = None, genre: str = ""):
     """Concept -> an ORIGINAL movie script (the model writes + directs). Always
-    returns a playable spec (deterministic fallback if the model is off/garbled)."""
+    returns a playable spec (deterministic fallback if the model is off/garbled).
+    `genre` (e.g. 'comedy', 'noir') steers the story's tone, tropes and pacing."""
     ref = craft_kb.brief(concept)                  # cross-reference the craft KB while writing
     want = _mentioned(concept)                      # the concrete drawable subjects named in the concept
     leads = ""
     if len(want) >= 2:                              # a relationship concept — both must be on screen
         leads = (f"\nLEADS: this story is about {', '.join(want)} — ALL of them must appear on screen "
                  f"(in the cast) and interact; do not drop any. Name them concretely, never 'they'/'it'.\n")
-    user_msg = (f"CRAFT REFERENCE (apply this 3-act structure and craft):\n{ref}\n{leads}\n"
+    gline = (f"\nGENRE: {genre} — tell the story unmistakably as a {genre}: its tone, tropes, "
+             f"imagery and pacing should read as {genre} from the first shot.\n") if genre else ""
+    user_msg = (f"CRAFT REFERENCE (apply this 3-act structure and craft):\n{ref}\n{leads}{gline}\n"
                 f"CONCEPT: {concept}\n\nWrite the original ~90-second film (all 9 beats) as JSON.")
     # the endpoint scales to zero; a cold start can exceed one timeout. Retry with a long
     # read timeout so a real, original script comes back instead of the generic fallback.
@@ -645,14 +648,15 @@ ADVENTURE_SYS = (
     "Keep the SAME characters across chunks so the viewer can follow them.")
 
 
-def direct_branch(concept: str, history: str = "", choice: str = "") -> dict:
+def direct_branch(concept: str, history: str = "", choice: str = "", genre: str = "") -> dict:
     """One chunk of an interactive film. `history` is the story so far; `choice` is
     what the viewer just picked (a label or their own typed direction). Returns
     {title?, shots:[...], choices:[{key,label}], ending:bool}."""
+    gline = f"\nGENRE: {genre} — keep every chunk unmistakably {genre} in tone and tropes.\n" if genre else ""
     if not history:
-        user = f"CONCEPT: {concept}\n\nBegin the adventure: write the FIRST chunk."
+        user = f"CONCEPT: {concept}{gline}\n\nBegin the adventure: write the FIRST chunk."
     else:
-        user = (f"CONCEPT: {concept}\n\nSTORY SO FAR:\n{history}\n\n"
+        user = (f"CONCEPT: {concept}{gline}\n\nSTORY SO FAR:\n{history}\n\n"
                 f"THE VIEWER CHOSE: {choice}\n\nContinue: write the NEXT chunk.")
     # adventure may use a separate, more general endpoint (CLAUDEMOVIES_ADV_*); branching
     # is poor on the movie-only fine-tune. Falls back to the main endpoint if ADV is unset.
