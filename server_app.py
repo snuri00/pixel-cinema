@@ -347,8 +347,8 @@ body.playing #spill{opacity:1}
 /* controls docked along the bottom, over the audience */
 #controls{position:fixed;left:0;right:0;bottom:0;z-index:4;padding:18px 22px 20px;
   background:linear-gradient(to top,rgba(4,6,10,.97),rgba(4,6,10,.78) 65%,transparent)}
-#crow{display:flex;gap:10px;align-items:center;max-width:1120px;margin:0 auto 10px;width:100%}
-#concept{flex:1;min-width:0;background:rgba(11,14,18,.92);border:1px solid #2b3540;border-radius:11px;
+#crow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;max-width:1120px;margin:0 auto 10px;width:100%}
+#concept{flex:1 1 340px;min-width:260px;background:rgba(11,14,18,.92);border:1px solid #2b3540;border-radius:11px;
   color:var(--ink);padding:12px 15px;font:14px 'JetBrains Mono',monospace}
 #concept:focus{outline:none;border-color:var(--accent)}
 #controls button{border:none;border-radius:11px;padding:12px 18px;cursor:pointer;white-space:nowrap;
