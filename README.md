@@ -25,6 +25,25 @@ proper **THE END** card.
   screen with reactive lighting. Subjects are proportionally sized (a mouse < a person < an
   elephant), fit to the frame, and shaded onto the ground. Every asset is generated once and
   cached, so replays are instant.
+- **A real cinema, not just a stream.** Curtains part when the film starts, a NOW SHOWING
+  marquee lights up over the screen, and the opening credits cast the players live (each
+  sprite appears as it's drawn). The player has a scrubbable progress bar with a shot counter,
+  pause/resume (Space), replay (R), stop (Esc), a queue for your next idea, and a downloadable
+  end-card poster starring the cast. Films you make are kept on a "your films" shelf (with
+  thumbnails, like the gallery) so you can replay them any time. Optional projector-hum +
+  chiptune cues via Web Audio, with a mute toggle.
+- **Adventure mode.** "Adventure" turns your idea into an interactive film told in chunks:
+  at each cliffhanger the audience picks what happens next, until the story earns its ending.
+- **Narration (local TTS).** Each shot's narration is voiced by **Kokoro-82M** on your machine
+  (the same realtime pipeline as small-talk), synthesised in a background thread while the film
+  streams and cached per line in `tts_cache/`. Runs on CPU by default so the GPU stays free for
+  the SD backend; needs `pip install kokoro soundfile` (falls back to silence without them).
+- **Theatrical staging.** Each shot is choreographed, not looped: `enter` walks in from
+  off-screen, `exit` leaves, `chase` pursues, `rise` floats up — with facing flips and a real
+  stride cycle. The camera pans / pushes (Ken Burns) / shakes over an oversized world canvas.
+  The environment lives: parallax silhouette skylines per setting, drifting clouds, stars and
+  a crescent moon at night, rain / snow / embers / fireflies / dust, torch flicker indoors,
+  mood emotes and speech bubbles over the cast.
 
 ## Setup
 
@@ -69,6 +88,10 @@ back to the `llm` / `procedural` backends and the pre-written gallery still play
 | `CLAUDEMOVIES_RENDER` | `pixel` (default) or `ascii` |
 | `CLAUDEMOVIES_ASSET_BACKEND` | `sd` \| `llm` \| `procedural` |
 | `CLAUDEMOVIES_BG_BACKEND` | `sd` \| `procedural` |
+| `CLAUDEMOVIES_SPRITE_VARIANTS` | Distinct SD/LLM sprite looks cached per subject (default `3`) — each film picks one, so "cat" isn't the same cat in every film |
+| `CLAUDEMOVIES_TTS` | `1` narration voice on (default) · `0` off |
+| `CLAUDEMOVIES_TTS_DEVICE` | `cpu` (default, keeps VRAM for SD) \| `cuda` \| `auto` (cuda if ≥2 GB free) |
+| `CLAUDEMOVIES_TTS_VOICE` | Kokoro voice id (default `af_heart`) |
 | `CLAUDEMOVIES_SD_MODEL` | Pixel-art SD 1.5 model id |
 | `CLAUDEMOVIES_SD_OFFLOAD` | `1` CPU-offload (low VRAM) · `0` full GPU (fast) |
 | `CLAUDEMOVIES_SD_GEN` | Generation resolution (lower = less VRAM) |

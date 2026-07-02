@@ -113,24 +113,35 @@ def _shade(rgb, f):
 
 
 def render_ground(setting: str, w_px: int, h_px: int, seed: int, tile: int = 8) -> Image.Image:
-    """A WFC-laid floor filling w_px x h_px for the given terrain setting."""
+    """A WFC-laid floor filling w_px x h_px for the given terrain setting.
+    Texture comes from a small pool of pre-noised tile variants pasted per cell,
+    so the cost is a few hundred pastes instead of one putpixel per pixel."""
     pal = GROUND.get(setting, GROUND["earth"])
     rng = random.Random(seed)
     tw, th = (w_px + tile - 1) // tile, (h_px + tile - 1) // tile
     grid = solve(tw, th, 3, _GW, _GROUND_RULES, rng)
+    variants = []
+    for t in range(3):
+        vs = []
+        for _ in range(5):
+            v = Image.new("RGBA", (tile, tile))
+            vp = v.load()
+            for py in range(tile):
+                f0 = 1.0 + 0.05 * ((py / tile) - 0.5)
+                for px in range(tile):
+                    vp[px, py] = _shade(pal[t], f0 + rng.uniform(-0.04, 0.04)) + (255,)
+            vs.append(v)
+        variants.append(vs)
     img = Image.new("RGBA", (tw * tile, th * tile), (0, 0, 0, 255))
     for ty in range(th):
         for tx in range(tw):
             t = grid[ty][tx]
-            base = pal[t]
-            for py in range(tile):
-                for px in range(tile):
-                    f = 1.0 + 0.05 * ((py / tile) - 0.5) + rng.uniform(-0.04, 0.04)
-                    img.putpixel((tx * tile + px, ty * tile + py), _shade(base, f) + (255,))
+            img.paste(rng.choice(variants[t]), (tx * tile, ty * tile))
             if t == 2:
                 cx, cy = tx * tile + tile // 2, ty * tile + tile // 2
-                img.putpixel((cx, cy), _shade(base, 0.7) + (255,))
-                img.putpixel((cx, cy + 1), _shade(base, 0.7) + (255,))
+                dark = _shade(pal[t], 0.7) + (255,)
+                img.putpixel((cx, cy), dark)
+                img.putpixel((cx, cy + 1), dark)
     return img.crop((0, 0, w_px, h_px))
 
 

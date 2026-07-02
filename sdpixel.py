@@ -263,17 +263,21 @@ def _spec_to_grid(spec):
     return [[pal.get(ch) for ch in row] for row in spec["rows"]]
 
 
-def frames_sd(label: str, desc: str = ""):
+def frames_sd(label: str, desc: str = "", variant: int = 0):
     """All animation frames for a subject via LOCAL SD (the sprite sheet split into frames),
-    cached to disk. Returns a list of aligned cell grids, or None on failure."""
-    key = label.lower().strip()
+    cached to disk. `variant` (bucketed to CLAUDEMOVIES_SPRITE_VARIANTS looks) reseeds the
+    render so different films get different designs of the same subject, each cached once.
+    Returns a list of aligned cell grids, or None on failure."""
+    nvar = max(1, int(os.environ.get("CLAUDEMOVIES_SPRITE_VARIANTS", "3")))
+    b = variant % nvar
+    key = label.lower().strip() + (f"#{b}" if b else "")
     if key in _CACHE:
         return [_spec_to_grid(s) for s in _CACHE[key]["frames"]]
     with _GEN_LOCK:
         if key in _CACHE:
             return [_spec_to_grid(s) for s in _CACHE[key]["frames"]]
         try:
-            raw = generate_raw(f"{label} {desc}".strip())
+            raw = generate_raw(f"{label} {desc}".strip(), seed=_seed(key))
             frames = pixelize_frames(raw)
         except Exception as e:
             import sys
@@ -290,9 +294,9 @@ def frames_sd(label: str, desc: str = ""):
         return frames
 
 
-def draw_pixels_sd(label: str, desc: str = ""):
+def draw_pixels_sd(label: str, desc: str = "", variant: int = 0):
     """A single sprite cell grid for a subject (first SD frame). None on failure."""
-    frames = frames_sd(label, desc)
+    frames = frames_sd(label, desc, variant=variant)
     return frames[0] if frames else None
 
 
@@ -312,15 +316,25 @@ SCENES = {
 _BG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bg_cache")
 
 
-def background_sd(setting: str, w: int = 320, h: int = 180, seed: int | None = None):
-    path = os.path.join(_BG_DIR, f"{setting}.png")
+def _bg_load(path: str, w: int, h: int):
+    img = Image.open(path).convert("RGB")
+    return img if img.size == (w, h) else img.resize((w, h), Image.NEAREST)
+
+
+def background_sd(setting: str, w: int = 320, h: int = 180, seed: int | None = None,
+                  variant: int = 0):
+    """A pixelized SD backdrop for a setting. `variant` picks between differently
+    seeded renders of the same scene (cached per variant), so films don't all
+    share one identical background per setting."""
+    name = setting if not variant else f"{setting}_{variant}"
+    path = os.path.join(_BG_DIR, f"{name}.png")
     if os.path.exists(path):
-        return Image.open(path).convert("RGB")
+        return _bg_load(path, w, h)
     with _GEN_LOCK:
         if os.path.exists(path):
-            return Image.open(path).convert("RGB")
+            return _bg_load(path, w, h)
         scene = SCENES.get(setting, "open landscape")
-        img = generate_raw("bg:" + setting, seed=seed if seed is not None else _seed("bg:" + setting),
+        img = generate_raw("bg:" + name, seed=seed if seed is not None else _seed("bg:" + name),
                            prompt=f"16bitscene, {scene}, detailed environment, no characters, no people")
         small = (img.resize((w // 2, h // 2), Image.BILINEAR)
                  .quantize(colors=32, method=Image.MEDIANCUT).convert("RGB")

@@ -23,10 +23,18 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 import movies
 import pixelscene
 import render
+import tts
 
 W, H = render.W, render.H
 HERE = os.path.dirname(__file__)
 SHOW = os.path.join(HERE, "showcase")
+MADE = os.path.join(HERE, "made")
+POSTERS = os.path.join(HERE, "static", "posters")
+os.makedirs(MADE, exist_ok=True)
+os.makedirs(POSTERS, exist_ok=True)
+_MADE_RE = re.compile(r"^[0-9a-f]{12}$")
+_POSTER_LOCK = threading.Lock()
+ADV: dict = {}
 
 # Which renderer stages the film: the new PIXEL scene (default) or the original ASCII grid.
 # Override per deploy with CLAUDEMOVIES_RENDER=ascii|pixel.
@@ -128,20 +136,84 @@ def _payload(grid, title=""):
     return {"html": grid_to_html(grid, title), "tint": tint, "lvl": energy}
 
 
-def _pix_payload(uri, tint, lvl):
+def _pix_payload(uri, tint, lvl, shot=None, total=None):
     """A pixel-scene frame: a PNG data-URI shown as an <img>, plus the same reactive-glow
-    fields (tint/lvl) the ASCII frames carry, so the cinema lighting still mirrors the action."""
-    return {"html": "<img class=pixfilm src='" + uri + "'>", "pix": True, "tint": tint, "lvl": lvl}
+    fields (tint/lvl) the ASCII frames carry, so the cinema lighting still mirrors the
+    action — and the shot index so the player can show progress and cue sounds."""
+    p = {"html": "<img class=pixfilm src='" + uri + "'>", "pix": True, "tint": tint, "lvl": lvl}
+    if shot is not None:
+        p["shot"], p["shots"] = shot, total
+    return p
 
 
-def _film_payloads(spec):
+def _film_payloads(spec, end=True):
     """Yield SSE frame payloads for a film in the configured render mode (pixel | ascii)."""
     if RENDER_MODE == "ascii":
         for grid in render.iter_movie_frames(spec):
             yield _payload(grid, spec.get("title", ""))
     else:
-        for uri, tint, lvl in pixelscene.iter_film_frames(spec):
-            yield _pix_payload(uri, tint, lvl)
+        total = len(spec.get("shots", []))
+        for uri, tint, lvl, shot in pixelscene.iter_film_frames(spec, scale=1, end=end):
+            yield _pix_payload(uri, tint, lvl, shot, total)
+
+
+def _prewarm_payloads(spec):
+    """Turn asset prewarm events into credits-screen SSE lines (casting / set building)."""
+    for ev in pixelscene.iter_prewarm(spec):
+        if not isinstance(ev, dict):
+            yield {"phase": "writing"}
+        elif ev.get("kind") == "sprite":
+            p = {"phase": "cast", "label": str(ev.get("label") or "")[:40]}
+            if ev.get("img"):
+                p["img"] = ev["img"]
+            yield p
+        else:
+            yield {"phase": "set", "label": str(ev.get("label") or "")[:40]}
+
+
+def _film_payloads_with_audio(spec, end=True):
+    """Frames + per-shot narration audio. Kokoro synthesis runs in a background thread
+    (each line cached on disk); finished lines are interleaved into the frame stream as
+    {"audio": <wav data-uri>, "shot": i} so the player can voice each shot as it opens."""
+    if RENDER_MODE == "ascii" or not tts.available():
+        yield from _film_payloads(spec, end)
+        return
+    results: dict = {}
+
+    def worker():
+        for i, sh in enumerate(spec.get("shots", [])):
+            txt = " ".join(x for x in ((sh.get("narration") or "").strip(),
+                                       (sh.get("dialogue") or "").strip()) if x)
+            results[i] = tts.say_datauri(txt) if txt else None
+    threading.Thread(target=worker, daemon=True).start()
+    sent = set()
+
+    def flush():
+        for i in sorted(results.keys()):
+            if i not in sent:
+                sent.add(i)
+                if results[i]:
+                    yield {"audio": results[i], "shot": i}
+    for p in _film_payloads(spec, end):
+        yield from flush()
+        yield p
+    yield from flush()
+
+
+def _meta_payload(spec, made_id=None):
+    m = {"title": spec.get("title", ""), "shots": len(spec.get("shots", []))}
+    if made_id:
+        m["id"] = made_id
+    return {"meta": m}
+
+
+def _save_made(spec):
+    mid = uuid.uuid4().hex[:12]
+    try:
+        json.dump(spec, open(os.path.join(MADE, mid + ".json"), "w"))
+        return mid
+    except Exception:
+        return None
 
 
 def _screen(msg, label="ready"):
@@ -266,10 +338,50 @@ body.playing #spill{opacity:1}
   border-radius:9px;padding:8px 13px;font-size:12px;cursor:pointer;white-space:nowrap}
 #gallery .film:hover{color:#fff;border-color:var(--accent)}
 #gallery::-webkit-scrollbar{height:6px}#gallery::-webkit-scrollbar-thumb{background:#2a3340;border-radius:3px}
+#curtains{position:fixed;z-index:2;pointer-events:none;overflow:hidden}
+#curtains .cl,#curtains .cr{position:absolute;top:0;bottom:0;width:52%;
+  background:linear-gradient(90deg,#081824,#123245 26%,#0a2130 52%,#123245 78%,#081824);
+  box-shadow:0 0 30px rgba(0,0,0,.6);transition:transform 1.35s cubic-bezier(.65,.05,.35,1)}
+#curtains .cl{left:0;transform:translateX(-103%)}
+#curtains .cr{right:0;transform:translateX(103%)}
+#curtains.shut .cl,#curtains.shut .cr{transform:none}
+#marquee{position:fixed;z-index:4;text-align:center;font:700 12px 'JetBrains Mono',monospace;
+  letter-spacing:.26em;color:#e8c66a;text-shadow:0 0 16px rgba(232,198,106,.35);opacity:0;
+  transition:opacity .9s ease;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.playing #marquee{opacity:1}
+#choices{position:fixed;z-index:5;display:none;flex-direction:column;align-items:center;
+  justify-content:flex-end;gap:8px;padding-bottom:16px}
+#choices.on{display:flex}
+#choices .chead{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#eef2f6;
+  text-shadow:0 1px 10px #000}
+#choices .chb{background:rgba(10,14,20,.94);border:1px solid var(--accent);color:#dfe6ee;
+  border-radius:9px;padding:9px 16px;font:600 12px 'JetBrains Mono',monospace;cursor:pointer;max-width:86%}
+#choices .chb:hover{background:var(--accent);color:#04130d}
+#progrow{display:none;align-items:center;gap:10px;max-width:1120px;margin:0 auto 8px;width:100%}
+body.playing #progrow{display:flex}
+#pbar{flex:1;height:5px;background:#1a222c;border-radius:3px;cursor:pointer;overflow:hidden}
+#pfill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+#shotlab{font-size:11px;color:#93a0ad;min-width:52px;text-align:right}
+#queuechip{max-width:1120px;margin:0 auto;width:100%;font-size:11px;color:#8b96a4}
+#queuechip:not(:empty){margin-bottom:6px}
+#myrow{display:none;gap:8px;overflow-x:auto;max-width:1120px;margin:0 auto 8px;width:100%;align-items:center}
+#myrow.on{display:flex}
+.rowlab{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#7d8896;flex:0 0 auto}
+#gallery .film,#myrow .film{display:flex;flex-direction:column;gap:5px;align-items:center;padding:6px 8px 7px}
+#gallery .film img,#myrow .film img{width:96px;height:54px;border-radius:5px;display:block;
+  image-rendering:pixelated;background:#0a0e14;border:0}
+#gallery .film span,#myrow .film span{max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#credcast{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:2px}
+#credcast .cred{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9px;
+  letter-spacing:.16em;text-transform:uppercase;color:#aab4c0}
+#credcast .cred img{height:42px;image-rendering:pixelated}
+#pause,#poster,#mute,#fs{padding:12px 12px}
 /* ── mobile: stack the input over the buttons so nothing is cut off, and keep clear of the
    phone's home indicator with the safe-area inset ── */
-#fs.mob{display:none}                     /* fullscreen toggle: mobile only */
 @media (max-width:680px){
+  #marquee{display:none}
+  #gallery .film img,#myrow .film img{width:72px;height:40px}
+  #choices .chb{font-size:11px;padding:8px 10px}
   /* on mobile, placeScreen() zooms the photo so the theatre screen fills the width and pins
      #screen to it (nothing cut off). The photo-reveal glow assumes desktop cover, so hide it. */
   #reveal{display:none}
@@ -284,7 +396,6 @@ body.playing #spill{opacity:1}
   #crow{flex-wrap:wrap;gap:7px;margin-bottom:8px}
   #concept{flex:1 1 100%;font-size:13px;padding:11px 13px;border-radius:9px}
   #controls button{flex:1 1 auto;padding:11px 8px;font-size:12px;border-radius:9px}
-  #fs.mob{display:inline-block;flex:1 1 100%;background:#16191f;border:1px solid #2b3540;color:#cfd6df}
   #brand{font-size:12px;top:10px;left:12px}
   #gallery{gap:6px}
   #gallery .film{font-size:11px;padding:7px 10px}
@@ -312,49 +423,59 @@ pre#loadtitle{margin:0;white-space:pre;line-height:1.0;font-size:clamp(5px,1.0vw
 </div>
 <div id=screen></div>
 <img id=bg src="static/cinema.png" alt="">
+<div id=curtains><div class=cl></div><div class=cr></div></div>
 <div id=reveal></div>
 <div id=spill></div>
+<div id=marquee></div>
+<div id=choices></div>
 <div id=brand>&#9654; PIXEL <b>CINEMA</b></div>
 <div id=controls>
+  <div id=progrow><div id=pbar><div id=pfill></div></div><span id=shotlab></span></div>
   <div id=crow>
     <input id=concept maxlength=60 autocomplete=off spellcheck=false
       placeholder="Describe your film — e.g. a tiny knight afraid of the dark">
     <button id=go>&#9654; Make &amp; play</button>
+    <button id=adv>&#8943; Adventure</button>
     <button id=surprise>Surprise</button>
     <button id=replay>&#8635; Replay</button>
+    <button id=pause>&#9208; Pause</button>
     <button id=stop>Stop</button>
-    <button id=fs class=mob>&#9974; Fullscreen</button>
+    <button id=poster>Poster</button>
+    <button id=mute>Sound: on</button>
+    <button id=fs>&#9974;</button>
   </div>
+  <div id=queuechip></div>
+  <div id=myrow></div>
   <div id=gallery></div>
 </div>
 <script>
 const screen=document.getElementById('screen');
-// ── ANSI-shadow ASCII font for the PIXEL CINEMA title (loader + opening credits) ──
 let GLYPH=null;
 function asciiWord(t){if(!GLYPH)return t;t=t.toUpperCase();
   let rows=[];for(let r=0;r<6;r++){let line="";
     for(const c of t){line+= c===' ' ? '    ' : (GLYPH[c]?GLYPH[c][r]:'    ');}rows.push(line);}
   return rows.join('\n');}
-function asciiTitle(){return asciiWord('PIXEL')+'\n'+asciiWord('CINEMA');}   // stacked, fits narrow screens
+function asciiTitle(){return asciiWord('PIXEL')+'\n'+asciiWord('CINEMA');}
 function paintLoaderTitle(){const el=document.getElementById('loadtitle');if(el&&GLYPH)el.textContent=asciiTitle();}
 fetch('static/ansifont.json').then(r=>r.json()).then(g=>{GLYPH=g;paintLoaderTitle();
-  if(!es&&!playTimer&&!phase)welcome();}).catch(()=>{});   // re-render welcome with the ASCII title
+  if(!es&&!playTimer&&!phase)welcome();}).catch(()=>{});
 const SURPRISES=["a tiny knight who is afraid of the dark","a lonely robot who finds a stray cat",
 "a dragon who would rather bake than fight","a snail who dreams of racing the wind",
 "a little ghost afraid of humans","a candle racing the dawn"];
 let es=null;
-// ── loader: reveal the whole scene at once, once the bg image + gallery are ready ──
 const loader=document.getElementById('loader');
 let bgReady=false,galReady=false,minDone=false;
 function reveal(){if(bgReady&&galReady&&minDone){loader.classList.add('hide');
   setTimeout(()=>{loader.style.display='none';},1200);}}
 (function(){const b=document.getElementById('bg');
   if(b.complete&&b.naturalWidth>0)bgReady=true; else b.addEventListener('load',()=>{bgReady=true;reveal();});
-  setTimeout(()=>{minDone=true;reveal();},1600);                 // min on-screen time for the copy
-  setTimeout(()=>{bgReady=galReady=minDone=true;reveal();},7000);})(); // safety: never hang
-const revealEl=document.getElementById('reveal'), spillEl=document.getElementById('spill');
-// fit a full film frame (80x18 grid) to exactly fill the screen box without cropping the
-// subtitle — measured from real glyph metrics, so it tracks the cut-out at any size.
+  setTimeout(()=>{minDone=true;reveal();},1600);
+  setTimeout(()=>{bgReady=galReady=minDone=true;reveal();},7000);})();
+const revealEl=document.getElementById('reveal'), spillEl=document.getElementById('spill'),
+  curtainsEl=document.getElementById('curtains'), marqueeEl=document.getElementById('marquee'),
+  choicesEl=document.getElementById('choices'), pfill=document.getElementById('pfill'),
+  shotlab=document.getElementById('shotlab'), pbar=document.getElementById('pbar'),
+  pauseBtn=document.getElementById('pause'), queueEl=document.getElementById('queuechip');
 let _fs=null;
 function fit(force){const p=screen.querySelector('pre'); if(!p||p.classList.contains('msg'))return;
   if(_fs&&!force){p.style.fontSize=_fs+'px';return;}
@@ -363,112 +484,232 @@ function fit(force){const p=screen.querySelector('pre'); if(!p||p.classList.cont
   if(!cw||!ch)return;
   _fs=(Math.min(screen.clientWidth/cw, screen.clientHeight/ch)*0.99).toFixed(2);
   p.style.fontSize=_fs+'px';}
-// map the film screen EXACTLY onto the photo's cut-out (x596..2102, y172..807 of 2638x1478).
-// DESKTOP: the photo is object-fit:cover; mirror that transform. MOBILE (portrait): a landscape
-// photo can't cover without hiding the screen, so we ZOOM the photo so the cut-out fills the
-// width and pin #screen to it — the theatre screen stays the focus and nothing is cut off.
 const SX=596,SY=172,SW=1507,SH=636,IW=2638,IH=1478;
+function placeAt(l,t,w,h){screen.style.left=l+'px';screen.style.top=t+'px';
+  screen.style.width=w+'px';screen.style.height=h+'px';
+  [curtainsEl,choicesEl].forEach(el=>{el.style.left=l+'px';el.style.top=t+'px';
+    el.style.width=w+'px';el.style.height=h+'px';});
+  marqueeEl.style.left=l+'px';marqueeEl.style.width=w+'px';marqueeEl.style.top=Math.max(4,t-26)+'px';}
 function placeScreen(){const bg=document.getElementById('bg'),vw=window.innerWidth,vh=window.innerHeight;
-  if(vw<=680){                                   // mobile: zoom to the screen
+  if(vw<=680){
     const s=(vw*0.96)/SW, lx=vw*0.02, ty=vh*0.16;
     bg.style.position='fixed';bg.style.objectFit='fill';bg.style.right='auto';bg.style.bottom='auto';
     bg.style.width=(IW*s)+'px';bg.style.height=(IH*s)+'px';
     bg.style.left=(lx-SX*s)+'px';bg.style.top=(ty-SY*s)+'px';
-    screen.style.left=lx+'px';screen.style.top=ty+'px';
-    screen.style.width=(SW*s)+'px';screen.style.height=(SH*s)+'px';
-  }else{                                          // desktop: match object-fit:cover
+    placeAt(lx,ty,SW*s,SH*s);
+  }else{
     bg.style.position='';bg.style.objectFit='';bg.style.right='';bg.style.bottom='';
     bg.style.width='';bg.style.height='';bg.style.left='';bg.style.top='';
     const s=Math.max(vw/IW,vh/IH), ox=(vw-IW*s)/2, oy=(vh-IH*s)/2;
-    screen.style.left=(ox+SX*s)+'px';screen.style.top=(oy+SY*s)+'px';
-    screen.style.width=(SW*s)+'px';screen.style.height=(SH*s)+'px';
+    placeAt(ox+SX*s,oy+SY*s,SW*s,SH*s);
   }}
 placeScreen();
 window.addEventListener('resize',()=>{placeScreen();_fs=null;if(screen.querySelector('pre'))fit(true);});
 function show(h){screen.innerHTML=h;fit();}
+function curt(open){curtainsEl.classList.toggle('shut',!open);}
 function playing(on){document.body.classList.toggle('playing',on);
   if(!on){revealEl.style.opacity='';revealEl.style.filter='';spillEl.style.background='';}}
+let AC=null,master=null,humGain=null,muted=localStorage.getItem('pc_mute')==='1';
+function initAudio(){if(AC)return;
+  try{AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain();master.gain.value=muted?0:1;master.connect(AC.destination);
+    const len=AC.sampleRate*2,nb=AC.createBuffer(1,len,AC.sampleRate),ch=nb.getChannelData(0);
+    for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+    const src=AC.createBufferSource();src.buffer=nb;src.loop=true;
+    const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=130;
+    humGain=AC.createGain();humGain.gain.value=0;
+    src.connect(lp);lp.connect(humGain);humGain.connect(master);src.start();
+  }catch(e){AC=null;}}
+function hum(on){if(AC&&humGain)humGain.gain.linearRampToValueAtTime(on?0.045:0,AC.currentTime+0.8);}
+function blip(f,dur,vol){if(!AC)return;
+  try{const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.value=f;
+    g.gain.setValueAtTime(vol,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
+    o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+dur);}catch(e){}}
+function endChord(){[262,330,392].forEach((f,i)=>setTimeout(()=>blip(f,1.2,0.06),i*90));}
+function paintMute(){document.getElementById('mute').textContent=muted?'Sound: off':'Sound: on';}
+document.getElementById('mute').onclick=()=>{muted=!muted;localStorage.setItem('pc_mute',muted?'1':'0');
+  if(master)master.gain.value=muted?0:1;paintMute();};
+paintMute();
 function welcomeHTML(){const title=GLYPH?("<pre class='wel-title'>"+asciiTitle()+"</pre>")
     :"<div class='cr-big'>PIXEL CINEMA</div>";
   return "<div class='scene-center'>"+title
     +"<div class='w-dir'>Type an idea below and press &ldquo;Make &amp; play&rdquo; &mdash; a small model will "
-    +"write, draw and direct your film. Or pick one from the gallery. "
+    +"write, draw and direct your film. &ldquo;Adventure&rdquo; makes it interactive: you pick what happens next. "
+    +"Or pick one from the gallery. "
     +"You can also <a class='wlink' href='https://huggingface.co/spaces/build-small-hackathon/llm-cinema/blob/main/LOCAL_LLAMACPP.md' target='_blank' rel='noopener'>run it off the grid, locally on llama.cpp</a>.</div></div>";}
-function welcome(){playing(false);screen.innerHTML=welcomeHTML();}   // set directly (no fit() on the title pre)
-// one film frame -> screen + the colour-mirror glow (used live AND on replay)
+function welcome(){playing(false);hideChoices();curt(true);hum(false);marqueeEl.textContent='';
+  screen.innerHTML=welcomeHTML();}
+function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function renderFilmFrame(d){show(d.html);playing(true);
+  if(typeof d.shot==='number'&&d.shot!==lastShot){
+    if(lastShot>=0){if(curShots&&d.shot>=curShots)endChord();else blip(1180,0.05,0.028);}
+    lastShot=d.shot;
+    if(!curShots||d.shot<curShots)playNarr(d.shot);else stopNarr();}
   if(d.tint){const r=d.tint[0],g=d.tint[1],b=d.tint[2],e=(d.lvl||0);
     const a=(0.15*e).toFixed(3), a2=(0.05*e).toFixed(3);
     spillEl.style.background='radial-gradient(76% 56% at 51% 70%, rgba('+r+','+g+','+b+','+a+') 0%, '
       +'rgba('+r+','+g+','+b+','+a2+') 46%, transparent 78%)';
     revealEl.style.opacity=Math.min(0.7,e*1.4).toFixed(3);
     revealEl.style.filter='brightness('+(1.06+0.12*e).toFixed(3)+') saturate(1.05) blur(8px)';}}
-// ── intro: while the model writes, hold the TITLE + a status; when it's done, fade to a
-//    short "presented by" bumper, then play the film (buffered so nothing is skipped) ──
-const BUMPER=[
-  "<div class='cr-s'>PIXEL&nbsp;CINEMA<br><b>presents</b></div>"];
+let castLog=[],writeMsg='';
+function writingHTML(){const t=GLYPH?("<pre class='cr-title'>"+asciiTitle()+"</pre>"):"<div class='cr-big'>PIXEL CINEMA</div>";
+  const items=castLog.slice(-6).map(c=>"<span class='cred'>"+(c.img?"<img src='"+c.img+"'>":"")
+    +esc(c.label)+"</span>").join('');
+  return t+"<div class='cr-sub'>"+esc(writeMsg)+"</div>"+(items?"<div id=credcast>"+items+"</div>":"");}
 function showCard(inner){screen.innerHTML="<div id=credwrap>"+inner+"</div>";
   const w=document.getElementById('credwrap');requestAnimationFrame(()=>{if(w)w.classList.add('show');});}
 function fadeCard(){const w=document.getElementById('credwrap');if(w)w.classList.remove('show');}
-function startWriting(){phase='writing';playing(true);
-  revealEl.style.opacity='0';spillEl.style.background='';      // dim the house only — no glow yet
-  const t=GLYPH?("<pre class='cr-title'>"+asciiTitle()+"</pre>"):"<div class='cr-big'>PIXEL CINEMA</div>";
-  showCard(t+"<div class='cr-sub'>drawing the cast &amp; sets, please wait</div>");}
+function startWriting(msg){phase='writing';playing(true);curt(true);castLog=[];writeMsg=msg;
+  revealEl.style.opacity='0';spillEl.style.background='';
+  showCard(writingHTML());}
+function updWriting(msg){if(phase!=='writing')return;writeMsg=msg||writeMsg;
+  const w=document.getElementById('credwrap');
+  if(w){w.innerHTML=writingHTML();w.classList.add('show');}else showCard(writingHTML());}
+const BUMPER=["<div class='cr-s'>PIXEL&nbsp;CINEMA<br><b>presents</b></div>"];
 function playBumper(done){let i=0;
   (function step(){
     if(i>=BUMPER.length){fadeCard();creditsTimer=setTimeout(done,900);return;}
     showCard(BUMPER[i]);
     creditsTimer=setTimeout(()=>{fadeCard();creditsTimer=setTimeout(()=>{i++;step();},700);},2200);})();}
-// ── streaming + a buffer so any film can be replayed exactly ──
 let phase=null,buf=[],playTimer=null,creditsTimer=null,streamDone=false;
-function startBufferedPlay(){phase='playing';let i=0;
-  playTimer=setInterval(()=>{
-    if(i<buf.length){renderFilmFrame(buf[i++]);}
-    else if(streamDone){clearInterval(playTimer);playTimer=null;playing(false);}},150);}
+let paused=false,idx=0,lastShot=-1,curTitle='',curShots=0,pendingBranch=null,advId=null;
+let queue=[],audioByShot={},narrBufs={},narrSrc=null;
+function stopNarr(){if(narrSrc){try{narrSrc.stop();}catch(e){}narrSrc=null;}}
+function playNarr(s){if(!AC||!(s in audioByShot))return;const u=audioByShot[s];if(!u)return;
+  stopNarr();
+  const go=b=>{if(lastShot!==s||paused)return;const src=AC.createBufferSource();src.buffer=b;
+    const g=AC.createGain();g.gain.value=0.9;src.connect(g);g.connect(master);src.start();narrSrc=src;};
+  if(narrBufs[s]){go(narrBufs[s]);return;}
+  fetch(u).then(r=>r.arrayBuffer()).then(ab=>AC.decodeAudioData(ab))
+    .then(b=>{narrBufs[s]=b;go(b);}).catch(()=>{});}
+function curtainReveal(){phase='reveal';fadeCard();curt(false);
+  creditsTimer=setTimeout(()=>{if(buf.length)show(buf[0].html);
+    creditsTimer=setTimeout(()=>{curt(true);
+      creditsTimer=setTimeout(startBufferedPlay,600);},400);},1500);}
+function updQueue(){queueEl.textContent=queue.length?('next up: '+queue.join(' · ')):'';}
+function updProg(){if(!buf.length){pfill.style.width='0%';shotlab.textContent='';return;}
+  const j=Math.max(0,Math.min(idx,buf.length-1)),d=buf[j];
+  pfill.style.width=(100*Math.min(1,(j+1)/buf.length)).toFixed(1)+'%';
+  shotlab.textContent=(d&&typeof d.shot==='number'&&curShots)
+    ?(Math.min(d.shot+1,curShots)+'/'+curShots):'';}
+function paintPause(){pauseBtn.innerHTML=paused?'&#9654; Resume':'&#9208; Pause';}
+function togglePause(){if(!playTimer)return;paused=!paused;paintPause();hum(!paused);
+  if(AC){try{paused?AC.suspend():AC.resume();}catch(e){}}}
+function finishPlayback(){if(playTimer){clearInterval(playTimer);playTimer=null;}
+  phase=null;hum(false);updProg();
+  if(pendingBranch){const br=pendingBranch;pendingBranch=null;showChoices(br);return;}
+  playing(false);curt(true);
+  if(queue.length){const c=queue.shift();updQueue();startMake(c);}}
+function playTick(){if(paused)return;
+  if(idx<buf.length){renderFilmFrame(buf[idx++]);updProg();}
+  else if(streamDone)finishPlayback();}
+function startBufferedPlay(){phase='playing';idx=0;paused=false;lastShot=-1;paintPause();
+  curt(true);hum(true);
+  playTimer=setInterval(playTick,150);}
+function seek(ev){if(!buf.length)return;
+  const r=pbar.getBoundingClientRect(),f=Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width));
+  idx=Math.floor(f*buf.length);lastShot=-1;stopNarr();
+  if(!playTimer)renderFilmFrame(buf[Math.min(idx,buf.length-1)]);
+  updProg();}
+pbar.addEventListener('click',seek);
 function stopStream(){if(es){es.close();es=null;}
   if(playTimer){clearInterval(playTimer);playTimer=null;}
   if(creditsTimer){clearTimeout(creditsTimer);creditsTimer=null;}}
-function stop(){stopStream();phase=null;welcome();}
-function stream(url,withCredits){stopStream();phase=null;buf=[];streamDone=false;
-  if(withCredits)startWriting();
+function stop(){stopStream();stopNarr();if(AC){try{AC.resume();}catch(e){}}
+  phase=null;paused=false;pendingBranch=null;queue=[];updQueue();welcome();}
+function showChoices(br){advId=br.id;const opts=(br.choices||[]).slice(0,3);
+  if(!opts.length){playing(false);curt(true);return;}
+  choicesEl.innerHTML="<div class='chead'>What happens next?</div>"
+    +opts.map(o=>"<button class='chb' data-c='"+encodeURIComponent(o.label)+"'>"
+      +esc(o.label)+"</button>").join('');
+  choicesEl.classList.add('on');
+  choicesEl.querySelectorAll('.chb').forEach(b=>{b.onclick=()=>{hideChoices();
+    stream('api/adventure_next?id='+advId+'&choice='+b.dataset.c,'the story continues, please wait',true);};});}
+function hideChoices(){choicesEl.classList.remove('on');choicesEl.innerHTML='';}
+function stream(url,msg,noBumper){stopStream();phase=null;buf=[];streamDone=false;idx=0;paused=false;
+  pendingBranch=null;hideChoices();curTitle='';curShots=0;lastShot=-1;updProg();paintPause();
+  audioByShot={};narrBufs={};stopNarr();
+  startWriting(msg||'drawing the cast & sets, please wait');
   es=new EventSource(url);
   es.onmessage=e=>{const d=JSON.parse(e.data);
     if(d.done){streamDone=true;if(es){es.close();es=null;}
-      if(!withCredits){playing(false);} return;}        // gallery stops here; make drains its buffer
-    if(d.phase)return;                                  // heartbeat while writing -> hold the title
+      if(phase==null&&!playTimer){playing(false);curt(true);} return;}
+    if(d.meta){curTitle=d.meta.title||'';curShots=d.meta.shots||0;
+      if(d.meta.id)saveMyFilm(d.meta.id,curTitle);
+      marqueeEl.textContent=curTitle?('NOW SHOWING — “'+curTitle.toUpperCase()+'”'):'';
+      return;}
+    if(d.branch){pendingBranch=d.branch;return;}
+    if(d.audio){audioByShot[d.shot]=d.audio;
+      if(playTimer&&lastShot===d.shot&&!narrSrc)playNarr(d.shot);
+      return;}
+    if(d.phase){
+      if(d.phase==='cast'){castLog.push({label:d.label||'',img:d.img||null});updWriting('casting the players');}
+      else if(d.phase==='set'){castLog.push({label:'set: '+(d.label||''),img:null});updWriting('building the sets');}
+      return;}
     if(!d.html)return;
     const film=d.pix||d.html.indexOf('<span')>=0;
-    if(!film){stopStream();phase=null;show(d.html);playing(false);return;}  // terminal message
+    if(!film){stopStream();phase=null;show(d.html);playing(false);curt(true);return;}
     buf.push(d);
-    if(withCredits){
-      if(phase==='writing'){phase='bumper';playBumper(startBufferedPlay);}  // first frame -> bumper
-      return;}                                          // bumper/playing: buffered player renders
-    renderFilmFrame(d);};                               // gallery: render live
-  es.onerror=()=>{if(es){es.close();es=null;}streamDone=true;if(phase==null)playing(false);};}
-function replay(){if(!buf.length)return;stopStream();phase='playing';
-  const frames=buf.slice();let i=0;playing(true);
-  playTimer=setInterval(()=>{if(i>=frames.length){clearInterval(playTimer);playTimer=null;playing(false);return;}
-    renderFilmFrame(frames[i++]);},150);}
+    if(phase==='writing'){phase='bumper';
+      if(noBumper)curtainReveal();else playBumper(curtainReveal);}
+    else if(!playTimer&&phase==null){startBufferedPlay();}};
+  es.onerror=()=>{if(es){es.close();es=null;}streamDone=true;if(phase==null&&!playTimer)playing(false);};}
+function replay(){if(!buf.length)return;stopStream();streamDone=true;pendingBranch=null;hideChoices();
+  startBufferedPlay();}
+function poster(){const last=buf[buf.length-1];if(!last||!last.pix)return;
+  const m=last.html.match(/src='([^']+)'/);if(!m)return;
+  const a=document.createElement('a');a.href=m[1];
+  a.download=((curTitle||'pixel-cinema').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-poster.png');
+  document.body.appendChild(a);a.click();a.remove();}
 const concept=document.getElementById('concept');
+function active(){return !!(es||playTimer||creditsTimer||phase);}
+function startMake(c){initAudio();stream('api/make?concept='+encodeURIComponent(c));}
 function make(){const c=concept.value.trim().slice(0,60);
   if(!c){concept.focus();return;}
-  stream('api/make?concept='+encodeURIComponent(c),true);}
+  if(active()){queue.push(c);updQueue();concept.value='';return;}
+  startMake(c);}
 document.getElementById('go').onclick=make;
 concept.addEventListener('keydown',e=>{if(e.key==='Enter')make();});
+document.getElementById('adv').onclick=()=>{const c=concept.value.trim().slice(0,60);
+  if(!c){concept.focus();return;}
+  initAudio();stream('api/adventure?concept='+encodeURIComponent(c),'writing your adventure, please wait');};
 document.getElementById('surprise').onclick=()=>{const c=SURPRISES[Math.floor(Math.random()*SURPRISES.length)];
-  concept.value=c;stream('api/make?concept='+encodeURIComponent(c),true);};
+  concept.value=c;make();};
 document.getElementById('replay').onclick=replay;
 document.getElementById('stop').onclick=stop;
-// fullscreen (mobile): go fullscreen and try to lock landscape for a proper cinema view
+document.getElementById('pause').onclick=togglePause;
+document.getElementById('poster').onclick=poster;
 document.getElementById('fs').onclick=()=>{const d=document, el=d.documentElement;
   if(d.fullscreenElement||d.webkitFullscreenElement){(d.exitFullscreen||d.webkitExitFullscreen||function(){}).call(d);return;}
   const req=el.requestFullscreen||el.webkitRequestFullscreen;
   if(req){const p=req.call(el); const lock=()=>{try{window.screen.orientation&&window.screen.orientation.lock&&
       window.screen.orientation.lock('landscape').catch(()=>{});}catch(e){}};
     if(p&&p.then)p.then(lock).catch(()=>{}); else lock();}};
+document.addEventListener('keydown',e=>{if(e.target===concept)return;
+  if(e.code==='Space'){e.preventDefault();togglePause();}
+  else if(e.key==='r'||e.key==='R')replay();
+  else if(e.key==='Escape')stop();});
+function filmChip(title,posterUrl,onclick){const b=document.createElement('button');b.className='film';
+  const im=document.createElement('img');im.loading='lazy';im.src=posterUrl;im.alt='';
+  im.onerror=()=>{im.style.display='none';};
+  const sp=document.createElement('span');sp.textContent=title;
+  b.appendChild(im);b.appendChild(sp);b.onclick=onclick;return b;}
+function myFilms(){try{return JSON.parse(localStorage.getItem('pc_films')||'[]');}catch(e){return [];}}
+function saveMyFilm(id,title){const l=myFilms().filter(f=>f.id!==id);
+  l.unshift({id:id,title:title||'untitled'});
+  try{localStorage.setItem('pc_films',JSON.stringify(l.slice(0,12)));}catch(e){}
+  renderMy();}
+function renderMy(){const row=document.getElementById('myrow');const l=myFilms();
+  row.innerHTML='';row.classList.toggle('on',l.length>0);
+  if(!l.length)return;
+  const lab=document.createElement('span');lab.className='rowlab';lab.textContent='your films';
+  row.appendChild(lab);
+  l.forEach(f=>row.appendChild(filmChip(f.title,'api/poster?made='+f.id,
+    ()=>{initAudio();stream('api/play_made?id='+f.id);})));}
+renderMy();
 fetch('api/gallery').then(r=>r.json()).then(films=>{const g=document.getElementById('gallery');
-  films.forEach(n=>{const b=document.createElement('button');b.className='film';b.textContent=n;
-    b.onclick=()=>stream('api/play?name='+encodeURIComponent(n),true);g.appendChild(b);});
+  films.forEach(n=>g.appendChild(filmChip(n,'api/poster?name='+encodeURIComponent(n),
+    ()=>{initAudio();stream('api/play?name='+encodeURIComponent(n));})));
   galReady=true;reveal();}).catch(()=>{galReady=true;reveal();});
 welcome();
 </script></body></html>"""
@@ -502,20 +743,61 @@ def gallery():
     return JSONResponse(list(_films(SHOW).keys()))
 
 
+def _spec_stream(spec, made_id=None):
+    def frames():
+        for p in _prewarm_payloads(spec):
+            yield p
+        yield _meta_payload(spec, made_id)
+        for p in _film_payloads_with_audio(spec):
+            yield p
+            time.sleep(movies.FRAME_MS * 0.6 / 1000)
+    return StreamingResponse(_sse(frames()), media_type="text/event-stream")
+
+
 @server.get("/api/play")
 def play(name: str):
     path = _films(SHOW).get(name)
     if not path:
         return JSONResponse({"error": "not found"}, status_code=404)
-    spec = json.load(open(path))
+    return _spec_stream(json.load(open(path)))
 
-    def frames():
-        for _ in pixelscene.iter_prewarm(spec):
-            yield {"phase": "writing"}
-        for p in _film_payloads(spec):
-            yield p
-            time.sleep(movies.FRAME_MS * 0.6 / 1000)
-    return StreamingResponse(_sse(frames()), media_type="text/event-stream")
+
+@server.get("/api/play_made")
+def play_made(id: str):
+    if not _MADE_RE.match(id or ""):
+        return JSONResponse({"error": "bad id"}, status_code=400)
+    path = os.path.join(MADE, id + ".json")
+    if not os.path.exists(path):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return _spec_stream(json.load(open(path)), made_id=id)
+
+
+@server.get("/api/poster")
+def poster(name: str = "", made: str = ""):
+    if made:
+        if not _MADE_RE.match(made):
+            return JSONResponse({"error": "bad id"}, status_code=400)
+        path, key = os.path.join(MADE, made + ".json"), "made_" + made
+    else:
+        path = _films(SHOW).get(name)
+        key = "show_" + re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")[:48]
+    if not path or not os.path.exists(path):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    out = os.path.join(POSTERS, key + ".png")
+    if not os.path.exists(out):
+        with _POSTER_LOCK:
+            if not os.path.exists(out):
+                spec = json.load(open(path))
+                shots = spec.get("shots") or []
+                if not shots:
+                    return JSONResponse({"error": "empty"}, status_code=404)
+                try:
+                    fr = pixelscene._shot_tick_frames(
+                        shots[0], 0, pixelscene._variant(spec), pixelscene._cast_variant(spec))
+                    fr[len(fr) // 2].convert("RGB").save(out)
+                except Exception:
+                    return JSONResponse({"error": "render failed"}, status_code=500)
+    return FileResponse(out, media_type="image/png")
 
 
 @server.get("/api/make")
@@ -547,12 +829,82 @@ def make(concept: str):
             yield _screen("Could not reach the model. Please try again.", "error")
             return
         spec = result["spec"]
-        for _ in pixelscene.iter_prewarm(spec):
-            yield {"phase": "writing", "t": int(time.time() - t0)}
-        for p in _film_payloads(spec):
+        mid = _save_made(spec)
+        for p in _prewarm_payloads(spec):
+            yield p
+        yield _meta_payload(spec, mid)
+        for p in _film_payloads_with_audio(spec):
             yield p
             time.sleep(movies.FRAME_MS * 0.6 / 1000)
     return StreamingResponse(_sse(frames()), media_type="text/event-stream")
+
+
+def _adv_stream(sid: str, concept: str, history: str, choice: str, first: bool):
+    def frames():
+        result = {}
+
+        def work():
+            try:
+                result["chunk"] = movies.direct_branch(concept, history, choice)
+            except Exception as e:
+                result["error"] = f"{type(e).__name__}: {e}"
+        th = threading.Thread(target=work, daemon=True)
+        th.start()
+        t0 = time.time()
+        while th.is_alive():
+            yield {"phase": "writing", "t": int(time.time() - t0)}
+            th.join(timeout=0.7)
+        chunk = result.get("chunk")
+        if result.get("error") or not chunk or not chunk.get("shots"):
+            yield _screen("Could not reach the model. Please try again.", "error")
+            return
+        sess = ADV.get(sid)
+        if sess is None:
+            yield _screen("This adventure has expired — start a new one.", "error")
+            return
+        if first:
+            sess["title"] = str(chunk.get("title") or concept[:30])
+        sess["history"] += "\n".join(s.get("narration", "") for s in chunk["shots"]) + "\n"
+        spec = {"title": sess["title"], "logline": concept, "shots": chunk["shots"]}
+        for p in _prewarm_payloads(spec):
+            yield p
+        yield _meta_payload(spec)
+        ending = bool(chunk.get("ending"))
+        for p in _film_payloads_with_audio(spec, end=ending):
+            yield p
+            time.sleep(movies.FRAME_MS * 0.6 / 1000)
+        if not ending:
+            yield {"branch": {"id": sid, "choices": (chunk.get("choices") or [])[:3]}}
+    return StreamingResponse(_sse(frames()), media_type="text/event-stream")
+
+
+@server.get("/api/adventure")
+def adventure(concept: str):
+    concept = _clean_concept(concept)
+    if not concept or _blocked(concept) or _INJECT.search(concept):
+        msg = ("Type a short film idea to begin.", "ready") if not concept else \
+              ("Let's keep it friendly — try a kind, fun film idea.", "blocked")
+
+        def guard():
+            yield _screen(*msg)
+        return StreamingResponse(_sse(guard()), media_type="text/event-stream")
+    if len(ADV) > 200:
+        ADV.clear()
+    sid = uuid.uuid4().hex[:12]
+    ADV[sid] = {"concept": concept, "history": "", "title": concept[:30]}
+    return _adv_stream(sid, concept, "", "", True)
+
+
+@server.get("/api/adventure_next")
+def adventure_next(id: str, choice: str = ""):
+    sess = ADV.get(id)
+    if not sess or not _MADE_RE.match(id or ""):
+        return JSONResponse({"error": "unknown adventure"}, status_code=404)
+    choice = _clean_concept(choice)[:40]
+    if _blocked(choice) or _INJECT.search(choice):
+        choice = "press on"
+    sess["history"] += f"\nTHE VIEWER CHOSE: {choice}\n"
+    return _adv_stream(id, sess["concept"], sess["history"], choice, False)
 
 
 if __name__ == "__main__":

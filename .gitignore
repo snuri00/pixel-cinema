@@ -10,3 +10,6 @@ __pycache__/
 bg_cache/
 _*.png
 _*.gif
+made/
+static/posters/
+tts_cache/

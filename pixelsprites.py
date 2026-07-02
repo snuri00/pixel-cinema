@@ -41,6 +41,7 @@ BORDER_PRIM, BORDER_SEC = 3, 4
 _STYLES = ("humanoid", "quadruped", "creature", "ship", "tree", "object")
 
 ASSET_BACKEND = os.environ.get("CLAUDEMOVIES_ASSET_BACKEND", "llm").strip().lower()
+VARIANTS = max(1, int(os.environ.get("CLAUDEMOVIES_SPRITE_VARIANTS", "3")))
 
 
 def _sd():
@@ -190,16 +191,21 @@ def _grid_from_drawspec(d: dict):
     return grid
 
 
-def draw_pixels(label: str, desc: str = ""):
+def draw_pixels(label: str, desc: str = "", variant: int = 0):
     """Model-drawn sprite cell grid for any subject (cached to disk). None if no endpoint
-    or the model didn't return usable pixel art."""
+    or the model didn't return usable pixel art. `variant` (bucketed to VARIANTS) asks
+    for a visibly different design of the same subject, cached separately."""
     if not os.environ.get("CLAUDEMOVIES_LLM_URL"):
         return None
-    key = label.lower().strip()
+    b = variant % VARIANTS
+    key = label.lower().strip() + (f"#{b}" if b else "")
     if key in _PX_CACHE:
         return _grid_from_drawspec(_PX_CACHE[key])
+    ask = f"Draw: {label}. {desc}".strip()
+    if b:
+        ask += f" Variation {b}: same subject, but a clearly different design — new palette, pose and details."
     try:
-        raw = llm(_DRAW_PX_SYS, f"Draw: {label}. {desc}".strip(), max_tokens=1100, temperature=0.5)
+        raw = llm(_DRAW_PX_SYS, ask, max_tokens=1100, temperature=0.5)
     except Exception:
         raw = ""
     if not raw or "{" not in raw:
@@ -318,39 +324,44 @@ def to_image(px, scale: int = 14) -> Image.Image:
     return base.resize((W * scale, h * scale), Image.NEAREST)
 
 
-def cells_for(label: str, w: int = 9, h: int = 12):
+def cells_for(label: str, w: int = 9, h: int = 12, variant: int = 0):
     """One sprite cell grid for a subject, via the configured backend with graceful fallthrough:
-    local SD -> model-drawn palette grid -> procedural blob (always works)."""
+    local SD -> model-drawn palette grid -> procedural blob (always works). `variant` keys the
+    look to a film, so the same subject differs between films but stays consistent within one:
+    SD/LLM bucket it to VARIANTS distinct cached designs, the free procedural path uses the
+    full value (unbounded shapes, plus a small hue drift)."""
     if ASSET_BACKEND == "sd":
         try:
-            g = _sd().draw_pixels_sd(label)
+            g = _sd().draw_pixels_sd(label, variant=variant)
             if g:
                 return g
         except Exception:
             pass
     if ASSET_BACKEND in ("sd", "llm"):
-        drawn = draw_pixels(label)
+        drawn = draw_pixels(label, variant=variant)
         if drawn is not None:
             return drawn
     spec = asset_spec(label)
-    return generate(w=w, h=h, seed=_seed_from(label), style=spec["style"], hue=spec["hue"])
+    seed = _seed_from(f"{variant}:{label}") if variant else _seed_from(label)
+    hue = (spec["hue"] + ((variant % 13) - 6) * 0.01) % 1.0 if variant else spec["hue"]
+    return generate(w=w, h=h, seed=seed, style=spec["style"], hue=hue)
 
 
-def anim_cells_for(label: str, mode: str = "idle", frames: int = 6):
+def anim_cells_for(label: str, mode: str = "idle", frames: int = 6, variant: int = 0):
     """Animation frames for a subject. With the SD backend we use the model's OWN sprite-sheet
     frames (a real walk/idle cycle); otherwise we synthesise motion from the single sprite."""
     if ASSET_BACKEND == "sd":
         try:
-            fr = _sd().frames_sd(label)
+            fr = _sd().frames_sd(label, variant=variant)
             if fr and len(fr) >= 2:
                 return fr
         except Exception:
             pass
-    return animate_cells(cells_for(label), mode=mode, frames=frames)
+    return animate_cells(cells_for(label, variant=variant), mode=mode, frames=frames)
 
 
-def sprite_for(label: str, scale: int = 14, w: int = 9, h: int = 12) -> Image.Image:
-    return to_image(cells_for(label, w, h), scale=scale)
+def sprite_for(label: str, scale: int = 14, w: int = 9, h: int = 12, variant: int = 0) -> Image.Image:
+    return to_image(cells_for(label, w, h, variant=variant), scale=scale)
 
 
 def _shift(px, dx, dy):
@@ -365,34 +376,41 @@ def _shift(px, dx, dy):
     return out
 
 
-def animate_cells(px, mode: str = "idle", frames: int = 4):
-    """Yield `frames` cell grids for a looping idle/walk cycle. Pure 2D transforms so the
-    silhouette stays consistent (no re-rolling the random shape per frame)."""
-    h = len(px)
-    out = []
-    for i in range(frames):
-        t = i / frames
-        if mode == "walk":
-            bob = [0, -1, 0, -1][i % 4]
-            sway = [-1, 0, 1, 0][i % 4]
-            f = _shift(px, sway, bob)
-            if i % 2 == 0:
-                f = [row[:] for row in f]
-                for x in range(len(f[0]) // 2):
-                    f[h - 1][x] = None
-            else:
-                f = [row[:] for row in f]
-                for x in range(len(f[0]) // 2, len(f[0])):
-                    f[h - 1][x] = None
-            out.append(f)
-        else:
-            bob = 0 if i % 2 == 0 else -1
-            out.append(_shift(px, 0, bob))
+def _leg_lift(px, left: bool):
+    """A step pose: the bottom row on one side folds up one pixel (a bent leg),
+    instead of vanishing — the silhouette keeps its mass while striding."""
+    h, w = len(px), len(px[0])
+    out = [row[:] for row in px]
+    xs = range(0, w // 2) if left else range((w + 1) // 2, w)
+    for x in xs:
+        if out[h - 1][x] is not None:
+            if h >= 2 and out[h - 2][x] is None:
+                out[h - 2][x] = out[h - 1][x]
+            out[h - 1][x] = None
     return out
 
 
-def animate(label: str, mode: str = "idle", frames: int = 4, scale: int = 14):
-    return [to_image(c, scale=scale) for c in animate_cells(cells_for(label), mode=mode, frames=frames)]
+def animate_cells(px, mode: str = "idle", frames: int = 4):
+    """Yield `frames` cell grids for a looping idle/walk cycle. Pure 2D transforms so the
+    silhouette stays consistent (no re-rolling the random shape per frame).
+    Walk = a 4-pose stride (contact, left step, contact, right step) with bob + sway."""
+    out = []
+    if mode == "walk":
+        poses = (_shift(px, 0, 0),
+                 _shift(_leg_lift(px, True), -1, -1),
+                 _shift(px, 0, 0),
+                 _shift(_leg_lift(px, False), 1, -1))
+        for i in range(frames):
+            out.append(poses[i % 4])
+    else:
+        for i in range(frames):
+            out.append(_shift(px, 0, 0 if i % 2 == 0 else -1))
+    return out
+
+
+def animate(label: str, mode: str = "idle", frames: int = 4, scale: int = 14, variant: int = 0):
+    return [to_image(c, scale=scale)
+            for c in animate_cells(cells_for(label, variant=variant), mode=mode, frames=frames)]
 
 
 def save_gif(frames, path: str, duration: int = 180):
@@ -419,17 +437,18 @@ def main():
     ap.add_argument("--anim", help="animate a named sprite -> <label>.gif")
     ap.add_argument("--mode", default="idle", choices=["idle", "walk"])
     ap.add_argument("--scale", type=int, default=14)
+    ap.add_argument("--variant", type=int, default=0, help="per-film look variant (0 = canonical)")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
     if args.anim:
-        frames = animate(args.anim, mode=args.mode, scale=args.scale)
+        frames = animate(args.anim, mode=args.mode, scale=args.scale, variant=args.variant)
         out = args.out or f"{args.anim}.gif"
         save_gif(frames, out)
         print(f"wrote {out}  ({len(frames)} frames, {args.mode})")
         return
     if args.label:
-        img = sprite_for(args.label, scale=args.scale)
+        img = sprite_for(args.label, scale=args.scale, variant=args.variant)
         out = args.out or f"{args.label}.png"
         img.save(out)
         print(f"wrote {out}  ({img.width}x{img.height}, style={style_for(args.label)})")
